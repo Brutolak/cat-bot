@@ -1,15 +1,16 @@
 const userModel = require('../schema/user');
 const User = require('../schema/user');
 
-function getClientInfo(msg) {
+function getClientInfo( msg ) {
 	return {
         telegramId: msg.from.id,
 		firstName: msg.from.first_name,
-		lastName: msg.from.last_name,
+		language: msg.from.language_code,
+		notify: true
 	};
 }
 
-function isNew(telegramId, callback) {
+function isNew( telegramId, callback ) {
 	userModel.findOne({ telegramId: telegramId }, (err, existingUser) => {
 		if (err) {
 			callback(err, null);
@@ -35,7 +36,9 @@ function saveUser(user, callback) {
 
 			let newUserDto = new User({
 				telegramId: user.telegramId,
-				firstName: (user.firstName === undefined) ? '' : user.firstName
+				firstName: user.firstName,
+				language: user.language,
+				notify: user.notify
 			})
 
 			newUserDto.save((err) => {
@@ -87,20 +90,46 @@ function giveItems(telegramId, items){
 			}
 
 		}
+		updateUser( telegramId, { inventory: inventory } )
+	})
+}
 
-		updateUser(telegramId, { inventory: inventory })
+function takeItems( telegramId, items ){
+	getById(telegramId, (err, user)=>{
+		let { inventory } = user
+
+		for ( var item in items ){
+			let pos = isNewItem(item, inventory)
+			if ( pos == -1 ){
+				return
+			}else{
+				let resultAmt = inventory[pos].amt - items[item]
+
+				if (resultAmt > 0){
+					inventory[pos].amt = resultAmt
+				}else{
+					if (resultAmt = 0){
+						if (inventory[pos].code !== 'fish'){
+							inventory.splice( pos, 1 )
+						}else{
+							inventory[pos].amt = resultAmt
+						}
+					}else{
+						return
+					}
+				}
+				updateUser(telegramId, { inventory: inventory })
+			}
+		}	
 	})
 }
 
 function isNewItem(item, inventory){
 	for ( var i in inventory ){
-
 		if ( inventory[i].code == item ){
 			return i;
 		}
-		pos++;
 	}
-
 	return -1;
 }
 
@@ -110,5 +139,6 @@ module.exports = {
 	saveUser,
     getById,
 	updateUser,
-	giveItems
+	giveItems,
+	takeItems
 };

@@ -1,103 +1,152 @@
-const userService = require('../service/userService')
-var emoji = require('node-emoji').emoji
+function getText( type, user, lang){
 
+    let { language } = user
 
-function getText( type ){
+    let isBack = type.match(/btn_back_(\w*)/)
 
-    //console.log(JSON.stringify(text[type][language]))
-    return text[type][language];
+    if ( text[type] ){
+
+        if ( lang ){
+            return text[type][lang]
+        }else{
+            return text[type][language]
+        }
+
+    } else {
+
+        if ( isBack ){
+            return text['btn_back'][language]
+        }else{
+            return '';
+        }
+    }
 }
 
-var language = 'ru'
-
 var text = {
-    btn_1:{
-        ru: `${emoji.white_large_square}`
+
+    start: {
+        ru: `Ура! 🙀 Теперь ты кот!`,
+        en: `Wow! 🙀 You're a cat now!`
     },
 
-    btn_profile: {
-        ru: `${emoji.sparkles} Профиль`,
-        en: `${emoji.sparkles} Profile`
+    walk: {
+        ru: `Ты пошёл на прогулку. `,
+        en: `You went for a walk`
     },
 
-    btn_actions: {
-        ru: `${emoji.running} Действия`,
-        en: `${emoji.running} Actions`
-    },
-
-    btn_options: {
-        ru: `${emoji.gear} Настройки`,
-        en: `${emoji.gear} Options`
-    },
-
-    btn_stats: {
-        ru: `${emoji.heart} Статы`,
-        en: `${emoji.heart} Stats`
-    },
-
-    btn_equip: {
-        ru: `${emoji.shirt} Экипировка`,
-        en: `${emoji.shirt} Equip`
-    },
-
-    btn_achieves: {
-        ru: `${emoji.trophy} Достижения`,
-        en: `${emoji.trophy} Achieves`
-    },
-
-    btn_inventory: {
-        ru: `${emoji.handbag} Инвентарь`,
-        en: `${emoji.handbag} Inventory`
+    cave: {
+        ru: `Ты пошёл в пещеру.`,
+        en: `You went to the cave.`
     },
 
     btn_main: {
-        ru: `${emoji.house} Назад на главную`,
-        en: `${emoji.house} Back to Main`
+        ru: `🏠 На главную`,
+        en: `🏠 Back to Main`
     },
+
+    btn_profile: {
+        ru: `😺 Профиль`,
+        en: `😺 Profile`
+    },
+
+    btn_actions: {
+        ru: `🏃 Действия`,
+        en: `🏃 Actions`
+    },
+
+        btn_act_walk: {
+            ru: `🐾 Прогулка`,
+            en: `🐾 To walk`
+        },
+
+        btn_act_cave: {
+            ru: `⛰ Пещера`,
+            en: `⛰ To the Cave `
+        },
+    
+    btn_options: {
+        ru: `⚙ Настройки`,
+        en: `⚙ Options`
+    },
+    
+        btn_opt_lang: {
+            ru: `🌐 Язык`,
+            en: `🌐 Language`
+        },
+
+            btn_opt_lang_ru: {
+                ru: `🇷🇺 Русский`,
+                en: `🇷🇺 Russian`
+            },
+
+            btn_opt_lang_en: {
+                ru: `🇬🇧 Английский`,
+                en: `🇬🇧 English`
+            },
+
+        btn_opt_notify: {
+            ru: `🔔 Оповещения`,
+            en: `🔔 Notifications`
+        },
+
+    btn_stats: {
+        ru: `📊 Статы`,
+        en: `📊 Stats`
+    },
+
+    btn_equip: {
+        ru: `👕 Экипировка`,
+        en: `👕 Equip`
+    },
+
+    btn_achieves: {
+        ru: `🏆 Достижения`,
+        en: `🏆 Achieves`
+    },
+
+    btn_inventory: {
+        ru: `👜 Инвентарь`,
+        en: `👜 Inventory`
+    },
+        btn_eat:{
+            ru: `🍽 Съесть`,
+            en: `🍽 Eat`
+        },
+
+        btn_buy:{
+            ru: `🪙 Купить`,
+            en: `🪙 Buy`
+        },
+
+        btn_put_on:{
+            ru: `🔼 Надеть`,
+            en: `🔼 Put on`
+        },        
+
+        btn_empty:{
+            ru: `🕸 Здесь пока нет вещей.`,
+            en: `🕸 It's empty for now.`
+        },
+
+        btn_empty_slot:{
+            ru: `⬛`,
+            en: `⬛`
+        },
+
+        btn_item_fish: {
+            ru: `🐟 Рыбка`,
+            en: `🐟 Fish`
+        },
 
     btn_back: {
-        ru: `${emoji.arrow_left} Назад`,
-        en: `${emoji.arrow_left} Back`
+        ru: `↩ Назад`,
+        en: `↩ Back`
     },
 
-    profile: {
-        ru: `Профиль`,
-        en: `Profile`
+    btn_work_in_progress: {
+        ru: `🚧 Ведутся работы. 🚧`,
+        en: `🚧 Work in progress. 🚧`
     },
-
-    main: {
-        ru: ``
-    },
-
-    actions: {
-        ru: ``
-    },
-
-    options: {
-        ru: ``
-    },
-
-    back: {
-        ru: ``
-    },
-
-    stats: {
-        ru: ``
-    },
-
-    equip: {
-        ru: ``
-    },
-
-    achieves: {
-        ru: ``
-    },
-
-    inventory: {
-        ru: ``
-    }
-
-
 }
 
 module.exports = getText
