@@ -4,11 +4,10 @@ const User = require('../schema/user');
 function getClientInfo( msg ) {
 	return {
         telegramId: msg.from.id,
-		firstName: msg.from.first_name,
-		language: msg.from.language_code,
-		notify: true
+		playerName: msg.from.first_name,
+		language: msg.from.language_code
 	};
-}
+};
 
 function isNew( telegramId, callback ) {
 	userModel.findOne({ telegramId: telegramId }, (err, existingUser) => {
@@ -23,10 +22,10 @@ function isNew( telegramId, callback ) {
 			callback(null, true);
 		}
 	});
-}
+};
 
-function saveUser(user, callback) {
-	isNew(user.telegramId, (err, result, _id) => {
+function saveUser( user, callback ) {
+	isNew( user.telegramId, (err, result) => {
 		if (err) {
 			callback(err, null);
 			return;
@@ -36,9 +35,10 @@ function saveUser(user, callback) {
 
 			let newUserDto = new User({
 				telegramId: user.telegramId,
-				firstName: user.firstName,
+				playerName: user.playerName,
 				language: user.language,
-				notify: user.notify
+				created: new Date(),
+				nextEnergy: new Date()
 			})
 
 			newUserDto.save((err) => {
@@ -53,7 +53,7 @@ function saveUser(user, callback) {
 			callback(null, false);
 		}
 	})
-}
+};
 
 function getById(telegramId, callback) {
 	userModel.findOne({ telegramId: telegramId }, (err, user) => {
@@ -64,16 +64,42 @@ function getById(telegramId, callback) {
 			callback(null, user);
 		}
 	});
-}
+};
 
-function updateUser( telegramId, newData ){
+function updateUser( telegramId, newData, callback){
+		userModel.findOneAndUpdate({ telegramId: telegramId }, newData, {new: true}, (err, user)=>{
+			if (err) {
+				callback(err, null);
+			}
+			else {
+				//console.log(`User: ${user.telegramId}> Update data: ${JSON.stringify(newData)}`)
+				callback(null, user);
+			}
+		});
+};
 
-	let filter = { telegramId: telegramId }
+function giveEnergy( telegramId, user){
 
-	userModel.findOneAndUpdate(filter, newData, {new: true}, (err, user)=>{
-		console.log(`User: ${user.telegramId}> Update data: ${JSON.stringify(newData)}`)
-	})
-}
+	const hour = 20 * 1000
+	
+	if( user.curEnergy < user.maxEnergy ){
+		let nextE = new Date()
+		let dT = nextE - user.nextEnergy
+
+		if( (dT >= hour) || (user.timerStarted == false) ){
+			updateUser( telegramId, { nextEnergy: nextE, timerStarted: true }, (err, userDB) => {})
+
+			setTimeout(() => {
+				getById( telegramId, (err, userDB) => {
+					updateUser( telegramId, { curEnergy: (userDB.curEnergy+1), timerStarted: false}, (err, updatedUser)=>{
+						giveEnergy( telegramId, updatedUser )
+					})
+				} )
+					
+			}, hour);
+		}
+	}
+};
 
 function giveItems(telegramId, items){
 	getById(telegramId, (err, user)=>{
@@ -90,9 +116,9 @@ function giveItems(telegramId, items){
 			}
 
 		}
-		updateUser( telegramId, { inventory: inventory } )
+		updateUser( telegramId, { inventory: inventory }, (err, userDB)=>{})
 	})
-}
+};
 
 function takeItems( telegramId, items ){
 	getById(telegramId, (err, user)=>{
@@ -118,11 +144,11 @@ function takeItems( telegramId, items ){
 						return
 					}
 				}
-				updateUser(telegramId, { inventory: inventory })
+				updateUser(telegramId, { inventory: inventory }, (err, userDB)=>{})
 			}
 		}	
 	})
-}
+};
 
 function isNewItem(item, inventory){
 	for ( var i in inventory ){
@@ -131,7 +157,7 @@ function isNewItem(item, inventory){
 		}
 	}
 	return -1;
-}
+};
 
 module.exports = {
     getClientInfo,
@@ -140,5 +166,6 @@ module.exports = {
     getById,
 	updateUser,
 	giveItems,
+	giveEnergy,
 	takeItems
 };

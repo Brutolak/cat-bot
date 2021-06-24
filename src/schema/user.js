@@ -4,24 +4,33 @@ var Schema = mongoose.Schema;
 
 var UserSchema = new Schema({
 	telegramId: String,
+	created: Date,
 	mainMessageId: {type: Number, default: 0},
-	lastType: {type: String, default: 'main'},
 	language: {type: String, default: 'ru'},
-	notify: Boolean,
 
-	firstName: {type: String, default:'Player'},
-	surrName:  {type: String, default:''},
+	playerName: String,
+
+	level: {type: Number, default: 1},
+	curExp: {type: Number, default: 0},
+	maxExp: {type: Number, default: 10},
+
+	curHealth: {type: Number, default: 30},
+	maxHealth: {type: Number, default: 30},
+
+	maxEnergy: {type: Number, default: 5},
+	curEnergy: {type: Number, default: 5},
+	inAction: {type: Boolean, default: false},
+	nextEnergy: {type: Date},
+	timerStarted: {type: Boolean, default: false},
+
+	attack: {type: Number, default: 3},
+	deffence: {type: Number, default: 0},
+	equip: {type: Object, default: {} },
 
 	inventory: {type: Array, default: [
 		{code: 'fish', amt: 0}
 	]},
 	ach: {type: Array, default: []},
-
-	level: {type: Number, default: 1},
-	health: {type: Number, default: 30},
-	energy: {type: Number, default: 10},
-	attack: {type: Number, default: 5},
-	deffence: {type: Number, default: 1}
 });
 
 var User = mongoose.model('user', UserSchema);

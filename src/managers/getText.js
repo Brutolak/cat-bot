@@ -1,152 +1,118 @@
-function getText( type, user, lang){
+const textMessage = require('./textMessage')
+const textButton = require('./textButton')
+const event = require('../content/events')
+
+const items = require("../content/items")
+
+function getText( type, user ){
 
     let { language } = user
 
-    let isBack = type.match(/btn_back_(\w*)/)
+    let btn = type.match( /btn_(\w*)/ )
+    if ( btn ) return getButtonText( type, language )
 
-    if ( text[type] ){
+    let evt = type.match( /evt_(\w*)/ )
+    if ( evt ) return getEventText( type, language )
 
-        if ( lang ){
-            return text[type][lang]
-        }else{
-            return text[type][language]
-        }
+    let msg = type.match( /msg_(\w*)/ )
+    if ( msg ) return textMessage[type][language]
 
-    } else {
-
-        if ( isBack ){
-            return text['btn_back'][language]
-        }else{
-            return '';
-        }
-    }
+    return genText( type, user )
 }
 
-var text = {
+function getEventText( type, language ){
 
-    start: {
-        ru: `Ура! 🙀 Теперь ты кот!`,
-        en: `Wow! 🙀 You're a cat now!`
-    },
+    let evType = type.match( /evt_(\w*)_\w*_/)[1]
+    let point = type.match(/evt_\w*_(\w*)_/)[1]
+    let n = type.match(/evt_\w*_\w*_(\d*)/ )[1]
 
-    walk: {
-        ru: `Ты пошёл на прогулку. `,
-        en: `You went for a walk`
-    },
+    console.log(type)
 
-    cave: {
-        ru: `Ты пошёл в пещеру.`,
-        en: `You went to the cave.`
-    },
+    if(n) return event[evType][point].text[n][language]
+    return event[evType][point].text[0][language]
+}
 
-    btn_main: {
-        ru: `🏠 На главную`,
-        en: `🏠 Back to Main`
-    },
+function getButtonText( type, language){
+    let back = type.match( /btn_back_(\w*)/ )
+    let item = type.match( /btn_item_(\w*)_/ )
 
-    btn_profile: {
-        ru: `😺 Профиль`,
-        en: `😺 Profile`
-    },
+    if ( back ){
+       return textButton['btn_back'][language]
+    }
 
-    btn_actions: {
-        ru: `🏃 Действия`,
-        en: `🏃 Actions`
-    },
+    if ( item ){
+        let name = item[1]
+        let amt = type.match( /btn_item_\w*_(\d*)/ )[1]
+        let icon = items[name].icon
+            
+       return `${icon} ${amt}`
+    }
 
-        btn_act_walk: {
-            ru: `🐾 Прогулка`,
-            en: `🐾 To walk`
-        },
+    return textButton[type][language]
+}
 
-        btn_act_cave: {
-            ru: `⛰ Пещера`,
-            en: `⛰ To the Cave `
-        },
+function genText( type, user ){
+    let { language } = user
+    let text = {}
     
-    btn_options: {
-        ru: `⚙ Настройки`,
-        en: `⚙ Options`
-    },
+    switch(type){
+
+        case 'stats':
+            text = buildStats( user, language )
+        break
+
+        case 'actions':
+            text = {
+                ru: `⚡ Энергия: ${user.curEnergy}/${user.maxEnergy} ${buildTimer(user)}`,
+                en: `⚡ Energy: ${user.curEnergy}/${user.maxEnergy} ${buildTimer(user)}`
+            }
+        break
+    }
+
+    return text[language]
+}
+
+function buildStats(user, language){
     
-        btn_opt_lang: {
-            ru: `🌐 Язык`,
-            en: `🌐 Language`
+    let statList = {
+        level: {
+            ru: `⭐ Уровень: ${user.level} (${user.curExp}/${user.maxExp})\n`,
+            en: `⭐ Level: ${user.level} (${user.curExp}/${user.maxExp})\n`
         },
-
-            btn_opt_lang_ru: {
-                ru: `🇷🇺 Русский`,
-                en: `🇷🇺 Russian`
-            },
-
-            btn_opt_lang_en: {
-                ru: `🇬🇧 Английский`,
-                en: `🇬🇧 English`
-            },
-
-        btn_opt_notify: {
-            ru: `🔔 Оповещения`,
-            en: `🔔 Notifications`
+        health: {
+            ru: `❤️ Жизни: ${user.curHealth}/${user.maxHealth}\n`,
+            en: `❤️ Health: ${user.curHealth}/${user.maxHealth}\n`
         },
+        energy: {
+            ru: `⚡ Энергия: ${user.curEnergy}/${user.maxEnergy} ${buildTimer(user)}`,
+            en: `⚡ Energy: ${user.curEnergy}/${user.maxEnergy} ${buildTimer(user)}`
+        }
+    }
 
-    btn_stats: {
-        ru: `📊 Статы`,
-        en: `📊 Stats`
-    },
+    let stats = {
+        ru:'',
+        en:''
+    }
 
-    btn_equip: {
-        ru: `👕 Экипировка`,
-        en: `👕 Equip`
-    },
+    for(key in statList){
+        stats[language] += statList[key][language]
+    }
+    
+    return stats
+}
 
-    btn_achieves: {
-        ru: `🏆 Достижения`,
-        en: `🏆 Achieves`
-    },
+function buildTimer( user ){
+    let hour = 60 * 60 * 1000
+    let energyTimer = new Date()
+    energyTimer = energyTimer - user.nextEnergy
+    if((energyTimer < hour) && (user.timerStarted)){
 
-    btn_inventory: {
-        ru: `👜 Инвентарь`,
-        en: `👜 Inventory`
-    },
-        btn_eat:{
-            ru: `🍽 Съесть`,
-            en: `🍽 Eat`
-        },
+        energyTimer = Math.floor((hour - energyTimer) / (60*1000) )
 
-        btn_buy:{
-            ru: `🪙 Купить`,
-            en: `🪙 Buy`
-        },
-
-        btn_put_on:{
-            ru: `🔼 Надеть`,
-            en: `🔼 Put on`
-        },        
-
-        btn_empty:{
-            ru: `🕸 Здесь пока нет вещей.`,
-            en: `🕸 It's empty for now.`
-        },
-
-        btn_empty_slot:{
-            ru: `⬛`,
-            en: `⬛`
-        },
-
-        btn_item_fish: {
-            ru: `🐟 Рыбка`,
-            en: `🐟 Fish`
-        },
-
-    btn_back: {
-        ru: `↩ Назад`,
-        en: `↩ Back`
-    },
-
-    btn_work_in_progress: {
-        ru: `🚧 Ведутся работы. 🚧`,
-        en: `🚧 Work in progress. 🚧`
-    },
+        return ` (⏰ ${energyTimer}m)`
+    }else{
+        return ``
+    }
 }
 
 module.exports = getText

@@ -1,7 +1,6 @@
 const getText = require('./getText')
-const items = require('./Items')
 
-var buttons = {
+var keyboard = {
     main: [
         ['profile'],
         ['actions'],
@@ -21,7 +20,11 @@ var buttons = {
         achieves: [
             ['main', 'back_profile']
         ],
-        inventory: ['inv'],
+        inventory: [
+            ['inv'],
+            ['fish'],
+            ['main', 'back_profile']
+        ],
             fish: [
                 ['eat'],
                 ['buy'],
@@ -45,97 +48,121 @@ var buttons = {
     ],
     options: [
         ['opt_lang'],
-        ['opt_notify'],
         ['main']
     ],
     opt_lang: [
         ['opt_lang_ru'],
         ['opt_lang_en'],
-        ['main']
+        ['main', 'back_options']
     ],
     work_in_progress: [
         ['work_in_progress'],
         ['main']
     ],
-    
+
 }
 
-function buildKeyboard( type, query, user, lang){
+function buildOptions( type, query, user ){
 
     let { telegramId } = user
+    let message_id
+
+    if ( !keyboard[type] ){
+        type = 'work_in_progress'
+    }
 
     if (query){
-    
-        if ( buttons[type] ){
-
-            return {
-                chat_id: telegramId,
-                message_id: query.message.message_id,
-                reply_markup: JSON.stringify({
-                    inline_keyboard: buildButtons( buttons[type], user, lang )
-                })
-            }
-        } else {
-            return {
-                chat_id: telegramId,
-                message_id: query.message.message_id,
-                reply_markup: JSON.stringify({
-                    inline_keyboard: buildButtons( buttons['work_in_progress'], user, lang  )
-                })
-            }
-        }
-
-    }else{
-        return {
-            reply_markup: JSON.stringify({
-                inline_keyboard: buildButtons( buttons[type], user, lang  )
-            })
-        }
+        message_id = query.message.message_id
     }
 
+    return {
+        chat_id: telegramId,
+        message_id: message_id,
+        reply_markup: JSON.stringify({
+            inline_keyboard: buildKeyboard( keyboard[type], user )
+        })
+    }
 }
 
-function buildButtons( buttons, user, lang ){
+function buildKeyboard( buttons, user ){
     
-    let kbd = []
+    let keyboard = []
 
-    if(buttons[0] == 'inv'){
-        let btn = user.inventory[1]
-
-        if ( btn ) {
-
-            kbd = buildInventory( user )
-
-        }else{
-            kbd.push([{
-                text: `${ getText( `btn_empty`, user )}`,
-                callback_data: 'empty'
-            }])
-        }
-
-        kbd.push(
-            [{text: `${ getText( `btn_item_fish`, user )}: ${user.inventory[0].amt}`, callback_data:'item_fish'}],
-            [{text: `${ getText( `btn_main`, user )}`, callback_data:'main'},
-             {text: `${ getText( `btn_back`, user )}`, callback_data:'back_profile'}]
-        )
-    }else{
+    if(buttons){
 
         for ( let row in buttons){
-            let kbdRow = []
+            let keyboardRow = []
             for ( let col in buttons[row] ){
-
                 let btn = buttons[row][col]
+                let needToDuild = true
+                let btnText = ''
+                let btnCB = btn
 
-                kbdRow.push({
-                    text: `${ getText( `btn_${btn}`, user, lang  )}`,
-                    callback_data: btn
-                })
+                switch(btn){
+
+                    case 'actions':
+                        if ( (user.inAction) || (user.curEnergy == 0) ){       
+                            needToDuild = false
+                        }
+                    break
+
+                    case 'equip':
+                        if ( isEmpty(user.equip) ){       
+                            needToDuild = false
+                        }
+                    break
+
+                    case 'achieves':
+                        if ( !user.ach.length ){       
+                            needToDuild = false
+                        }
+                    break
+
+                    case 'inv':
+                        keyboard = buildInventory(user)
+                        needToDuild = false
+                    break
+                    
+
+                    case 'fish':
+                        btnText = `${ getText( `btn_item_fish`, user ) }: ${user.inventory[0].amt}`
+                        btnCB = `btn_item_fish_${user.inventory[0].amt}`
+                    break
+
+                }
+
+                if(needToDuild){
+                    if (btnText == ''){
+                        btnText = getText( `btn_${btn}`, user )
+                    }
+                    keyboardRow.push( buildButton( btnText, btnCB ))
+                }
             }
-            kbd.push(kbdRow)
+            keyboard.push(keyboardRow) 
         }
     }
-    //console.log(kbd) 
-    return kbd;
+    //console.log(keyboard) 
+    return keyboard;
+}
+
+function isEmpty( obj ){
+    for(i in obj) return false
+    return true
+}
+
+function buildButton( text, callback ){
+
+    let button = {
+        text: text
+    }
+
+    if (callback){
+        button.callback_data = callback
+    }else{
+        button.callback_data = 'empty'
+    }
+
+    return button
 }
 
 function buildInventory( user ){
@@ -144,33 +171,34 @@ function buildInventory( user ){
     const col = 3
 
     let inventory = []
+    let btn = user.inventory[1]
 
-    for ( let i = 0; i<row; i++){
-        let invRow = []
-        for ( let j = 0; j<col; j++ ){
+    if ( btn ) {        
+        for ( let i = 0; i<row; i++){
+            let invRow = []
+            for ( let j = 0; j<col; j++ ){
 
-            btn = user.inventory[5*i+j + 1]
+                btn = user.inventory[5*i+j + 1]
+                let btnText = ''
+                let btnCB = 'empty'
 
-            if(btn){
-                if(items[btn.code]){
-                invRow.push({
-                    text: `${ items[btn.code].icon } ${ (items[btn.code].unique)?'':btn.amt }`,
-                    callback_data: `item_${btn.code}`
-                })}
-            }else{
-                invRow.push({
-                    text: `${ getText( `btn_empty_slot`, user )}`,
-                    callback_data: 'empty'
-                })
+                if(btn){
+                    btnText = getText( `btn_item_${btn.code}_${btn.amt}`, user )
+                    btnCB = `btn_item_${btn.code}_${btn.amt}`
+                }else{
+                    btnText = getText( `btn_empty_slot`, user )
+                }
+                invRow.push( buildButton( btnText, btnCB ))
             }
+            inventory.push( invRow )
         }
-        
-        inventory.push( invRow )
+    }else{
+        inventory.push([ buildButton( getText(`btn_empty`, user) )])
     }
 
     return inventory
 }
 
 module.exports = {
-    buildKeyboard
+    buildOptions
 }

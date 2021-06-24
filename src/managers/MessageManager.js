@@ -1,6 +1,7 @@
 const userService = require('../service/userService')
 const keyboardManager = require('./KeyboardManager')
-const getText = require('./getText.js')
+const getMedia = require('./getMedia')
+const getText = require('./getText')
 
 function messageManager(bot, msg){
 
@@ -11,22 +12,22 @@ function messageManager(bot, msg){
             bot.sendMessage(user.telegramId, 'Some error with saving');
 			return;
         }        
-        sendMessage('start', user, isNew, bot)
+        sendMessage( 'msg_start', user, isNew, bot )
     })
 }
 
-function sendMessage(type, user, send, bot){
+function sendMessage( msgType, user, send, bot ){
 
     userService.getById(user.telegramId, (getErr, userDB) => {
 
         if ( send ){
-            bot.sendMessage(
-                userDB.telegramId, 
-                getText( type, userDB )
-            )
-            .then(()=>{ 
-                mainMessage(userDB, bot ) 
-            })
+                bot.sendMessage(
+                    userDB.telegramId, 
+                    getText( msgType, userDB )
+                )
+                .then(()=>{ 
+                    mainMessage(userDB, bot ) 
+                })
         } else {
             mainMessage(userDB, bot )
         }
@@ -35,11 +36,11 @@ function sendMessage(type, user, send, bot){
 
 function mainMessage(userDB, bot){
 
-        bot.sendPhoto(
-            userDB.telegramId, 
-            'https://sun9-65.userapi.com/impg/csd5MDMbKq8DwxhI2ofPwx5twDifOYueQzge_A/YODplZv3xCU.jpg?size=700x300&quality=96&sign=e80dca9f78ec9ff53734151a43ef69f1&type=album',
-            keyboardManager.buildKeyboard('main', null, userDB.telegramId, userDB.language)
-        )
+    bot.sendPhoto(
+        userDB.telegramId, 
+        getMedia('main_pic'),
+        keyboardManager.buildOptions('main', null, userDB, userDB.language)
+    )
     .then((result) => {
         if (userDB.mainMessageId > 0){
             bot.deleteMessage(userDB.telegramId, userDB.mainMessageId)
@@ -49,7 +50,8 @@ function mainMessage(userDB, bot){
             userDB.telegramId,
             {
                 mainMessageId: result.message_id
-            }
+            },
+            (err, userDB)=>{}
         )
     })
 }
