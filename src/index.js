@@ -1,8 +1,9 @@
 const telegramToken = require('./config/telegramToken')
 const connectionString = require('./config/mongoToken')
 const TelegramAPI = require('node-telegram-bot-api')
-const cMg = require('./managers/CallbackManager')
-const mMg = require('./managers/MessageManager')
+const { callbackManager } = require('./managers/CallbackManager')
+const { messageManager, sendMessage } = require('./managers/MessageManager')
+const { energyManager } = require('./service/userService')
 const commands = require('./config/commands')
 const mongoose = require('mongoose');
 
@@ -14,10 +15,16 @@ bot.setMyCommands( commands )
     
 bot.on("polling_error", (m) => console.log(m));
 
-bot.on('callback_query', query => {
-    cMg.callbackManager( bot, query)
+bot.on('callback_query',( query ) => {
+    callbackManager( bot, query)
 })
 
 bot.onText( /\/start/, ( msg, match ) => {
-    mMg.messageManager( bot, msg )
+    messageManager( bot, msg, match )
+})
+
+energyManager((isFull, telegramId)=>{
+    if(isFull){
+      //  sendMessage('msg_energy', telegramId, true, bot)
+    }
 })

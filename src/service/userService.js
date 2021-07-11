@@ -1,16 +1,28 @@
-const userModel = require('../schema/user');
 const User = require('../schema/user');
 
 function getClientInfo( msg ) {
+
+	let userLang = msg.from.language_code
+	switch(userLang){
+
+		case 'ru':
+		case 'en':
+		break
+
+		default:
+			userLang = 'en'
+		break
+	}
+
 	return {
         telegramId: msg.from.id,
 		playerName: msg.from.first_name,
-		language: msg.from.language_code
+		language: userLang
 	};
 };
 
 function isNew( telegramId, callback ) {
-	userModel.findOne({ telegramId: telegramId }, (err, existingUser) => {
+	User.findOne({ telegramId: telegramId }, (err, existingUser) => {
 		if (err) {
 			callback(err, null);
 			return;
@@ -56,7 +68,7 @@ function saveUser( user, callback ) {
 };
 
 function getById(telegramId, callback) {
-	userModel.findOne({ telegramId: telegramId }, (err, user) => {
+	User.findOne({ telegramId: telegramId }, (err, user) => {
 		if (err) {
 			callback(err, null);
 		}
@@ -67,38 +79,108 @@ function getById(telegramId, callback) {
 };
 
 function updateUser( telegramId, newData, callback){
-		userModel.findOneAndUpdate({ telegramId: telegramId }, newData, {new: true}, (err, user)=>{
-			if (err) {
-				callback(err, null);
-			}
-			else {
-				//console.log(`User: ${user.telegramId}> Update data: ${JSON.stringify(newData)}`)
-				callback(null, user);
-			}
-		});
+
+	User.findOneAndUpdate({ telegramId: telegramId }, newData, {new: true}, (err, user)=>{
+		if (err) {
+			callback(err, null);
+		}
+		else {
+			console.log(`User: ${user.telegramId}> Update data: ${JSON.stringify(newData)}`)
+			callback(null, user);
+		}
+	});
 };
 
-function giveEnergy( telegramId, user){
+function energyManager(callback){
 
-	const hour = 20 * 1000
-	
-	if( user.curEnergy < user.maxEnergy ){
-		let nextE = new Date()
-		let dT = nextE - user.nextEnergy
+	console.log(`Energy Updater is started.`)
 
-		if( (dT >= hour) || (user.timerStarted == false) ){
-			updateUser( telegramId, { nextEnergy: nextE, timerStarted: true }, (err, userDB) => {})
+	const updateInterval = 60 * 1000 //one minute
+	setInterval(()=>{
 
-			setTimeout(() => {
-				getById( telegramId, (err, userDB) => {
-					updateUser( telegramId, { curEnergy: (userDB.curEnergy+1), timerStarted: false}, (err, updatedUser)=>{
-						giveEnergy( telegramId, updatedUser )
-					})
-				} )
-					
-			}, hour);
+		const timer =  60 * 60 * 1000 //one hour
+		let now = new Date()
+
+		User.find({}, function (err, docs) { if(err) throw err; docs.forEach(user => {
+
+			let {
+				curEnergy,
+				maxEnergy,
+			} = user
+
+			if ( curEnergy >= maxEnergy ) return 
+
+			let {
+				telegramId,
+				timerEnergy,
+				nextEnergy
+			} = user
+
+			if ( !timerEnergy ){
+				let newData = {
+					timerEnergy: true,
+					nextEnergy: now
+				}
+				return updateUser( telegramId, newData, (err, userDB) =>{} )
+			}
+
+			let dTimer = now - nextEnergy
+
+			if ( dTimer >= timer ){
+
+				let newData = {
+					nextEnergy: now,
+					curEnergy: curEnergy + 1
+				}
+
+				if(newData.curEnergy >= maxEnergy){
+					newData.timerEnergy = false
+				}
+
+				updateUser( telegramId, newData, (err, userDB)=>{
+					if(userDB.curEnergy >= userDB.maxEnergy) callback(true, telegramId)
+				} )	
+			}
+		})});
+	}, updateInterval)
+};
+
+function setEnergyTimer( telegramId, costEnergy){
+
+	getById( telegramId, (err, user)=> {
+
+		let newData = {
+			inAction: true,
+			curEnergy: user.curEnergy - costEnergy,
 		}
-	}
+		
+		if ( !user.timerEnergy ){
+			newData.timerEnergy = true
+			newData.nextEnergy =  new Date()
+		}
+
+		updateUser ( telegramId, newData, (err, user)=>{} )
+	})
+}
+
+function giveExp( telegramId, exp ){
+
+	getById( telegramId, (err, userDB) => {
+
+		let levelData = {}
+		let {level, curExp, maxExp} = userDB
+		let newExp = curExp + exp
+
+		if( newExp >= maxExp ){
+			levelData.level = userDB.level + 1
+			levelData.curExp = newExp - maxExp
+			levelData.maxExp = maxExp + level
+		} else{
+			levelData.curExp = newExp
+		}
+
+		updateUser( telegramId, levelData, (err, updatedUser)=>{})
+	})
 };
 
 function giveItems(telegramId, items){
@@ -166,6 +248,8 @@ module.exports = {
     getById,
 	updateUser,
 	giveItems,
-	giveEnergy,
+	energyManager,
+	setEnergyTimer,
+	giveExp,
 	takeItems
 };

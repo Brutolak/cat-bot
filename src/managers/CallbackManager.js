@@ -1,6 +1,6 @@
-const userService = require('../service/userService')
-const keyboardManager = require('./KeyboardManager')
-const eventManager = require('./EventManager')
+const { getById, updateUser } = require('../service/userService');
+const { buildOptions } = require('./KeyboardManager')
+const {startEvent} = require('./EventManager')
 const items = require('../content/items')
 const getMedia = require('./getMedia')
 const getText = require('./getText')
@@ -14,7 +14,7 @@ function callbackManager(bot, query){
 
         let telegramId = query.from.id
 
-        userService.getById( telegramId, (getErr, user) =>{
+        getById( telegramId, (getErr, user) =>{
 
             console.log(`User ${user.playerName}(${user.telegramId}) pressed btn_${type}`)
 
@@ -29,11 +29,16 @@ function callbackManager(bot, query){
                 query: query
             }
 
-            let itemName = type.match(/item_(\w*)_/)
-            let optType = type.match(/opt_(\w*)/)
-            let actType = type.match(/act_(\w*)/)
             let backType = type.match(/back_(\w*)/)
+            if ( backType ) newMsgData.kbType = backType[1]
 
+            let actType = type.match(/act_(\w*)/)
+            if ( actType ){
+                newMsgData.kbType = 'main'
+                return updateAction( actType, user, bot, newMsgData) 
+            }
+
+            let itemName = type.match(/item_(\w*)_/)
             if ( itemName ){
                 let language = user.language
                 let item = items[itemName[1]]
@@ -45,50 +50,54 @@ function callbackManager(bot, query){
                 newMsgData.kbType = item.type
             }
 
-            if ( actType ){
-                let updateAction = (...args) => {
-                    newMsgData.kbType = 'main'
-                    let newEnergy = user.curEnergy - 1
-
-                    if( newEnergy >= 0){
-                        userService.updateUser( telegramId, {curEnergy: newEnergy }, (err, userDB) =>{
-                            let eventType = actType[1]
-                            eventManager.startEvent( eventType, userDB, bot )
-                            userService.giveEnergy( telegramId, userDB )
-                            editMessage( newMsgData, userDB)
-                        })
-                    }
-                }
-                
-                return updateAction()
-            }
-
+            let optType = type.match(/opt_(\w*)/)
             if ( optType ){
-
-                let updateLang = (...args) => {
-                    optLang = optType[1].match(/lang_(..)/)
                 
-                    if (optLang){
-                        let language = optLang[1]
-                        newMsgData.kbType = 'options'
-
-                        userService.updateUser( telegramId, { language: language }, (err, userDB)=>{
-                            editMessage( newMsgData, userDB )
-                        })
-                    } else{
-                        editMessage( newMsgData, user )
-                    }
+                optLang = optType[1].match(/lang_(..)/)
+                if (optLang) {
+                    newMsgData.kbType = 'options'
+                    return updateLang( optLang, telegramId, newMsgData )
                 }
 
-                return updateLang()
+                optNotes = optType[1].match(/notes_(..)/)
+                if (optNotes) {
+                    newMsgData.kbType = 'options'
+                    return updateNotes( optNotes, telegramId, newMsgData )
+                }
+                
             }
-
-            if ( backType ) newMsgData.kbType = backType[1]
-
             editMessage( newMsgData, user )    
         })
     }
 }
+
+function updateAction( actType, user, bot, newMsgData ) {
+    let eventType = actType[1]
+    startEvent( eventType, user, bot )
+    editMessage( newMsgData, user)
+}
+
+function updateLang( optLang, telegramId, newMsgData ) {
+    
+    let language = optLang[1]
+       
+    updateUser( telegramId, { language: language }, (err, userDB)=>{
+        editMessage( newMsgData, userDB )
+    })
+}
+
+function updateNotes( optNotes, telegramId, newMsgData ) {
+    
+    let bool = false
+    let value = optNotes[1]
+    if (value === 'on'){
+        bool = true
+    }
+       
+    updateUser( telegramId, { deleteNotes: bool }, (err, userDB)=>{
+        editMessage( newMsgData, userDB )
+    })
+} 
 
 function editMessage( newMsgData, user ){
 
@@ -108,7 +117,7 @@ function editMessage( newMsgData, user ){
             caption: caption,
             parse_mode: 'Markdown'
         },
-        keyboardManager.buildOptions( kbType, query, user )
+        buildOptions( kbType, query, user )
     ) 
 }
 

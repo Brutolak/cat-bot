@@ -6,6 +6,9 @@ var UserSchema = new Schema({
 	telegramId: String,
 	created: Date,
 	mainMessageId: {type: Number, default: 0},
+	energyMessageId: {type: Number, default: 0},
+	eventMessageId: {type: Number, default: 0},
+	deleteNotes: {type:Boolean, default: false},
 	language: {type: String, default: 'ru'},
 
 	playerName: String,
@@ -21,7 +24,7 @@ var UserSchema = new Schema({
 	curEnergy: {type: Number, default: 5},
 	inAction: {type: Boolean, default: false},
 	nextEnergy: {type: Date},
-	timerStarted: {type: Boolean, default: false},
+	timerEnergy: {type: Boolean, default: false},
 
 	attack: {type: Number, default: 3},
 	deffence: {type: Number, default: 0},

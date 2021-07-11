@@ -1,5 +1,6 @@
-const textMessage = require('./textMessage')
-const textButton = require('./textButton')
+const textCaption = require('../content/textCaption')
+const textMessage = require('../content/textMessage')
+const textButton = require('../content/textButton')
 const event = require('../content/events')
 
 const items = require("../content/items")
@@ -17,6 +18,7 @@ function getText( type, user ){
     let msg = type.match( /msg_(\w*)/ )
     if ( msg ) return textMessage[type][language]
 
+    if ( textCaption[type] ) return textCaption[type][language]
     return genText( type, user )
 }
 
@@ -25,8 +27,6 @@ function getEventText( type, language ){
     let evType = type.match( /evt_(\w*)_\w*_/)[1]
     let point = type.match(/evt_\w*_(\w*)_/)[1]
     let n = type.match(/evt_\w*_\w*_(\d*)/ )[1]
-
-    console.log(type)
 
     if(n) return event[evType][point].text[n][language]
     return event[evType][point].text[0][language]
@@ -62,10 +62,15 @@ function genText( type, user ){
         break
 
         case 'actions':
+            let timer = buildTimer(user)[language]
             text = {
-                ru: `⚡ Энергия: ${user.curEnergy}/${user.maxEnergy} ${buildTimer(user)}`,
-                en: `⚡ Energy: ${user.curEnergy}/${user.maxEnergy} ${buildTimer(user)}`
+                ru: `⚡ Энергия: ${user.curEnergy}/${user.maxEnergy} ${timer}`,
+                en: `⚡ Energy: ${user.curEnergy}/${user.maxEnergy} ${timer}`
             }
+        break
+
+        default:
+            return ''
         break
     }
 
@@ -73,7 +78,7 @@ function genText( type, user ){
 }
 
 function buildStats(user, language){
-    
+    let timer = buildTimer(user)[language]
     let statList = {
         level: {
             ru: `⭐ Уровень: ${user.level} (${user.curExp}/${user.maxExp})\n`,
@@ -84,8 +89,8 @@ function buildStats(user, language){
             en: `❤️ Health: ${user.curHealth}/${user.maxHealth}\n`
         },
         energy: {
-            ru: `⚡ Энергия: ${user.curEnergy}/${user.maxEnergy} ${buildTimer(user)}`,
-            en: `⚡ Energy: ${user.curEnergy}/${user.maxEnergy} ${buildTimer(user)}`
+            ru: `⚡ Энергия: ${user.curEnergy}/${user.maxEnergy} ${timer}`,
+            en: `⚡ Energy: ${user.curEnergy}/${user.maxEnergy} ${timer}`
         }
     }
 
@@ -102,16 +107,20 @@ function buildStats(user, language){
 }
 
 function buildTimer( user ){
-    let hour = 60 * 60 * 1000
-    let energyTimer = new Date()
-    energyTimer = energyTimer - user.nextEnergy
-    if((energyTimer < hour) && (user.timerStarted)){
+    const timer = 60 * 60 * 1000
+    const now = new Date()
+    dTimer = now - user.nextEnergy
 
-        energyTimer = Math.floor((hour - energyTimer) / (60*1000) )
+    if( user.curEnergy < user.maxEnergy ){
 
-        return ` (⏰ ${energyTimer}m)`
+        energyTimer = Math.floor((timer - dTimer) / (60 * 1000) )
+
+        return {
+            ru:` (⏰ ${energyTimer}мин)`,
+            en:` (⏰ ${energyTimer}min)`
+        }
     }else{
-        return ``
+        return {ru:``,en:''}
     }
 }
 

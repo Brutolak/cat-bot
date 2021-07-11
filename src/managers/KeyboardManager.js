@@ -1,66 +1,5 @@
 const getText = require('./getText')
-
-var keyboard = {
-    main: [
-        ['profile'],
-        ['actions'],
-        ['options']
-    ],
-    profile: [
-        ['stats', 'equip'],
-        ['achieves', 'inventory'],
-        ['main']
-    ],
-        stats: [
-            ['main', 'back_profile']
-        ],
-        equip: [
-            ['main', 'back_profile']
-        ],
-        achieves: [
-            ['main', 'back_profile']
-        ],
-        inventory: [
-            ['inv'],
-            ['fish'],
-            ['main', 'back_profile']
-        ],
-            fish: [
-                ['eat'],
-                ['buy'],
-                ['main', 'back_inventory']
-            ],
-            item: [
-                ['main', 'back_inventory']
-            ],
-            food:[
-                ['eat'],
-                ['main', 'back_inventory']
-            ],
-            outfit:[
-                ['put_on'],
-                ['main', 'back_inventory']
-            ],
-    actions: [
-        ['act_walk'],
-        ['act_cave'],
-        ['main']
-    ],
-    options: [
-        ['opt_lang'],
-        ['main']
-    ],
-    opt_lang: [
-        ['opt_lang_ru'],
-        ['opt_lang_en'],
-        ['main', 'back_options']
-    ],
-    work_in_progress: [
-        ['work_in_progress'],
-        ['main']
-    ],
-
-}
+const keyboard = require('../content/keyboard')
 
 function buildOptions( type, query, user ){
 
@@ -100,8 +39,20 @@ function buildKeyboard( buttons, user ){
 
                 switch(btn){
 
-                    case 'actions':
+                    case 'act_walk':
                         if ( (user.inAction) || (user.curEnergy == 0) ){       
+                            needToDuild = false
+                        }
+                    break
+
+                    case 'opt_notes_on':
+                        if ( user.deleteNotes ){
+                            needToDuild = false
+                        }
+                    break
+
+                    case 'opt_notes_off':
+                        if ( !user.deleteNotes ){
                             needToDuild = false
                         }
                     break

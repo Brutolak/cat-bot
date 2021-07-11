@@ -45,10 +45,20 @@ const buttons = {
                 en: `🇬🇧 English`
             },
 
-        btn_opt_notify: {
-            ru: `🔔 Оповещения`,
-            en: `🔔 Notifications`
+        btn_opt_notes: {
+            ru: `📝 Записи`,
+            en: `📝 Notes`
         },
+
+            btn_opt_notes_on: {
+                ru: `🗑 Удалять`,
+                en: `🗑 Delete`
+            },
+
+            btn_opt_notes_off: {
+                ru: `📝 Оставлять`,
+                en: `📝 Keep`
+            },
 
     btn_stats: {
         ru: `📊 Статы`,
