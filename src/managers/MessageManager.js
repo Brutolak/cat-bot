@@ -1,120 +1,165 @@
-const userService = require('../service/userService')
-const {
-    getClientInfo,
-    saveUser,
-    getById,
-    updateUser
-} = require('../service/userService')
-const { buildOptions } = require('./KeyboardManager')
-const getMedia = require('./getMedia')
-const getText = require('./getText')
+const { bot } = require('../bot')
+const { Text } = require('./GetText')
+const { Media } = require('./GetMedia')
+const { Name, Start } = require('./GameManager')
+const { BuildKeyboard } = require('./KeyboardManager')
+const { GetById, UpdateUser } = require('../service/userService')
 
-function messageManager(bot, msg, match){
+async function MessageManager( msg ){
+    let isCommand = msg.text.match(/\//)
 
-    let user = getClientInfo(msg)
+    if (isCommand) {
+        if (msg.text == '/start') return await Start( msg ).then((key) => Message(msg.from, key))
 
-    saveUser(user, (saveErr, isNew) =>{
-        if (isNew){ 
-            sendMessage( 'msg_start', user.telegramId, true, bot ) 
-        } else {
-            let troll = match['input'].match(/\s(.*)/)
-            if (troll){
-                bot.sendMessage(-540976486,
-                     `Message from ${msg.chat.id}:\n<pre>${troll[1]}</pre>`,
-                {parse_mode:'HTML'})
-            } else {
-                mainMessage( user, bot, !isNew)
-            }
-            
+        let user = await GetById(msg.from.id)
+        if (!(user.status == 'free' || user.status == 'in_action')) return
+        if (msg.text == '/main') Message(user, 'main')
+        if (msg.text == '/me'){
+            if(msg.chat.id != msg.from.id) return Message(user, 'me')
+            return Message( user, 'stats' )
+            .then(msg => {
+                UpdateUser(user.id, {message:{main:msg.message_id}})
+                bot.deleteMessage(user.id, user.message.main)
+            })
+        } 
+
+    }else{
+        let user = await GetById(msg.from.id)
+        switch(user.status){
+            case 'name': return Name(msg).then((user) => Message(user, 'name_correct'))
         }
-    })
-}
-//rework args format: bot, telegramId, msgType, bonus, needMain                
-function sendMessage( msgType, telegramId, needMain, bot, bonus ){
-    getById(telegramId, (getErr, userDB) => {
-        let msgText = getText( msgType, userDB )
-        if(bonus) msgText += bonus
-
-        bot.sendMessage( userDB.telegramId, msgText )
-        .then(()=>{
-            if ( needMain ) { mainMessage(userDB, bot ) }
-        })
-    })
+    }
 }
 
-function sendButtonMessage( type, telegramId, needMain, bot, bonus ){
-    getById( telegramId, (getErr, userDB) => {
-        let msgText = getText( type, userDB )
-        if( bonus ) msgText += bonus
+async function Message( user, key, callback ){
 
-        bot.sendMessage( userDB.telegramId, msgText, buildOptions(type, null, userDB) )
-        .then(()=>{
-            if ( needMain ) { mainMessage(userDB, bot ) }
-        })
-    })
-}
+    let type = MessageType( key, callback )
+    let next = NextMessage( key )
+    let del = NeedDelete( key )
+    let main = NeedMain( key )
+    let msg
 
-function evntMessage( evtType, telegramId, bot, bonus){
-    getById(telegramId, (getErr, user) => {
+    console.log(`Message( ${key} ) => '${type}'`)
 
-        let msgText = getText( evtType, user )
-        if(bonus) msgText += bonus
-
-        bot.sendMessage( 
-            user.telegramId,
-            msgText
+    let opt = await Options(key, user)
+    
+    if( type == 'photo' ) {
+        let media = (key == 'profile'||key == 'me'||key == 'yahoo')? Media(user.avatar) : Media(key) 
+        await bot.sendPhoto(
+        user.id,    // chat
+        media, // media
+        opt         // message options: caption, buttons
+    ).then( result =>{
+        msg = result
+        let message_id = result.message_id
+        if(del) bot.deleteMessage(user.id, user.message.main).then(
+            UpdateUser(user.id, {message:{main: message_id}})
         )
-        .then((result)=>{
-            if (user.eventMessageId > 0){
-                if ( user.deleteNotes ){
-                    bot.deleteMessage(user.telegramId, user.eventMessageId)
-                } 
-            }
-            
-            updateUser(
-                user.telegramId,
-                {
-                    eventMessageId: result.message_id
-                },
-                (err, userDB)=>{}
-            )
-        })
+    })}
+
+    if( type == 'text') await bot.sendMessage(
+        user.id,
+        opt.caption,
+        opt
+    ).then(result =>{
+        msg = result
     })
+    .catch()
+
+
+    if( type == 'edit'){
+        let { caption, reply_markup, parse_mode } = opt
+        let media = Media('main')
+        await bot.editMessageMedia(
+            {type:'photo', media, caption, parse_mode},
+            {chat_id:user.id, message_id:callback.message_id, reply_markup }
+        )
+    }
+
+    if (next) await Message( user, next )
+    if (main) await Message( user, 'main')
+
+    return msg
 }
 
-function mainMessage( user, bot, getUser ){
-    if(getUser) return getById(user.telegramId, (getErr, userDB) => {
-        sendMain( bot, userDB )
-    })
-    return sendMain( bot, user )
+async function Options( key, user ){
+
+    let text = await Text(key, user)
+    
+    if(typeof text !='string'){
+        new_text = `<b>${text.icon}${text.name}</b>\n\n<i>${text.caption}</i>`
+        text = new_text
+    }
+
+    let opt = {
+        caption: text,
+        parse_mode: 'HTML',
+        reply_markup: await BuildKeyboard(key, user)
+    }
+    
+    return opt
 }
 
-function sendMain(bot, user){
-    bot.sendPhoto(
-        user.telegramId, 
-        getMedia('main_pic'),
-        buildOptions('main', null, user, user.language)
-    )
-    .then((result) => {
-        if (user.mainMessageId > 0){
-            
-            bot.deleteMessage(user.telegramId, user.mainMessageId)
-        }
+function MessageType( key, callback ){ //text, photo, edit
+
+    switch(key){
+        case 'walk':
+        case 'start':
+        case 'name_invalid':
+        case 'name_long':
+        case 'full_energy':
+            return 'text'
+
+        case 'stats':
+            if(!callback) return 'photo'
+        case 'actions':
+            return 'edit'
+
+        case 'me':
+            return 'photo'
+    }
+
+    if(callback) return 'edit'
+
+    let command = key.match(/_/)
+    if ( !command ) return 'photo'
+    return 'text'    
+}
+
+function NextMessage( key ){
+    switch( key ){
+        case 'mirror':
+            return 'yahoo'
+
+        default:
+            return false
+    }
+}
+
+function NeedDelete( key ){
+    switch( key ){
+        case 'main':
+            return true
+
+        default:
+            return false
+    }
+}
+
+function NeedMain( key ){
+    if(key.match(/^walk/)) return true
+
+    switch(key){
+        case 'yahoo':
+        case 'full_energy':
+            return true
         
-        updateUser(
-            user.telegramId,
-            {
-                mainMessageId: result.message_id
-            },
-            (err, userDB)=>{}
-        )
-    })
+        default:
+            return false
+    }
 }
 
-module.exports = {
-    messageManager,
-    sendMessage,
-    sendButtonMessage,
-    evntMessage,
-    mainMessage
+module.exports = { 
+    MessageManager,
+    Message 
 }

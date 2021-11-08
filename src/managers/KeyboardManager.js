@@ -1,155 +1,90 @@
-const getText = require('./getText')
-const keyboard = require('../content/keyboard')
+const{ Text } = require('./GetText')
 
-function buildOptions( type, query, user ){
+async function BuildKeyboard( key, user ){
+    const keyboard = require('../content/keyboard')
+    const items = require('../content/items')
 
-    let { telegramId } = user
-    let message_id
+    let buttons = ( keyboard[key] ) ? keyboard[key] :
+                ( items[key] ) ? keyboard[items[key].type] : []
 
-    if ( !keyboard[type] ){
-        type = 'work_in_progress'
-    }
+    if( !(buttons.length) ) return
 
-    if (query){
-        message_id = query.message.message_id
-    }
+    let new_keyboard = []
+    for ( let row in buttons){
+        let keyboardRow = []
+        for ( let col in buttons[row] ){
 
-    return {
-        chat_id: telegramId,
-        message_id: message_id,
-        reply_markup: JSON.stringify({
-            inline_keyboard: buildKeyboard( keyboard[type], user )
-        })
-    }
-}
+            let button = buttons[row][col]
 
-function buildKeyboard( buttons, user ){
-    
-    let keyboard = []
-
-    if(buttons){
-
-        for ( let row in buttons){
-            let keyboardRow = []
-            for ( let col in buttons[row] ){
-                let btn = buttons[row][col]
-                let needToDuild = true
-                let btnText = ''
-                let btnCB = btn
-
-                switch(btn){
-
-                    case 'act_walk':
-                        if ( (user.inAction) || (user.curEnergy == 0) ){       
-                            needToDuild = false
-                        }
-                    break
-
-                    case 'opt_notes_on':
-                        if ( user.deleteNotes ){
-                            needToDuild = false
-                        }
-                    break
-
-                    case 'opt_notes_off':
-                        if ( !user.deleteNotes ){
-                            needToDuild = false
-                        }
-                    break
-
-                    case 'equip':
-                        if ( isEmpty(user.equip) ){       
-                            needToDuild = false
-                        }
-                    break
-
-                    case 'achieves':
-                        if ( !user.ach.length ){       
-                            needToDuild = false
-                        }
-                    break
-
-                    case 'inv':
-                        keyboard = buildInventory(user)
-                        needToDuild = false
-                    break
-                    
-
-                    case 'fish':
-                        btnText = `${ getText( `btn_item_fish`, user ) }: ${user.inventory[0].amt}`
-                        btnCB = `btn_item_fish_${user.inventory[0].amt}`
-                    break
-
-                }
-
-                if(needToDuild){
-                    if (btnText == ''){
-                        btnText = getText( `btn_${btn}`, user )
-                    }
-                    keyboardRow.push( buildButton( btnText, btnCB ))
-                }
+            if(button == 'inv'){
+                new_keyboard = await BuildInv(user)
+            } else if( (NeedBuild(button, user)) ){
+                keyboardRow.push( await BuildButton( button, user ) )
             }
-            keyboard.push(keyboardRow) 
         }
+        new_keyboard.push(keyboardRow) 
     }
-    //console.log(keyboard) 
-    return keyboard;
+
+    return JSON.stringify({inline_keyboard: new_keyboard})
 }
 
-function isEmpty( obj ){
-    for(i in obj) return false
+async function BuildButton( button, user ){
+
+    let back = button.match(/^back_/)
+    let text
+    if (back){
+        text = await Text(`b_back`, user)
+    }else{
+        text = await Text(`b_${button}`, user)
+    }
+    
+    return {
+        text: text,
+        callback_data: button
+    }
+}
+
+function NeedBuild(button, user){
+    switch(button){
+        case 'walk':
+            if(user.energy.cur <= 0 || user.status == 'in_action') return false
+        break
+    }
     return true
 }
 
-function buildButton( text, callback ){
-
-    let button = {
-        text: text
-    }
-
-    if (callback){
-        button.callback_data = callback
-    }else{
-        button.callback_data = 'empty'
-    }
-
-    return button
-}
-
-function buildInventory( user ){
-
+async function BuildInv(user){
+    let inv = []
     const row = 4
     const col = 3
 
-    let inventory = []
-    let btn = user.inventory[1]
-
-    if ( btn ) {        
-        for ( let i = 0; i<row; i++){
-            let invRow = []
-            for ( let j = 0; j<col; j++ ){
-
-                btn = user.inventory[5*i+j + 1]
-                let btnText = ''
-                let btnCB = 'empty'
-
-                if(btn){
-                    btnText = getText( `btn_item_${btn.code}_${btn.amt}`, user )
-                    btnCB = `btn_item_${btn.code}_${btn.amt}`
-                }else{
-                    btnText = getText( `btn_empty_slot`, user )
-                }
-                invRow.push( buildButton( btnText, btnCB ))
-            }
-            inventory.push( invRow )
-        }
-    }else{
-        inventory.push([ buildButton( getText(`btn_empty`, user) )])
+    if( !(user.inv[1]) ){
+        inv.push( [await BuildButton( 'empty_inv' ,user )] )
+        return inv
     }
 
-    return inventory
+    for( i=0; i < row; i++ ){
+        let inv_row = []
+        for( j=0; j < col; j++ ){
+            let inv_item = user.inv[5*i+j + 1]
+            if(inv_item){
+                let item = await Text(inv_item.code, user)
+                inv_row.push( {
+                    text:`${item.icon} ${inv_item.amt}`,
+                    callback_data: inv_item.code
+                })
+            }else{
+                inv_row.push( await BuildButton( 'slot', user ) )
+                
+            }
+        }
+        inv.push( inv_row )
+    }
+    inv.push( [await BuildButton( 'fish', user )] )
+    
+    return inv
 }
 
 module.exports = {
-    buildOptions
+    BuildKeyboard
 }

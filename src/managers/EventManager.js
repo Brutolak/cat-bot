@@ -1,154 +1,75 @@
-const { sendMessage, sendButtonMessage, evntMessage  } = require('./MessageManager')
-const { updateUser, giveItems, giveExp, setEnergyTimer } = require('../service/userService')
+const { SetEvent } = require('../service/userService')
 const events = require('../content/events')
-const items = require('../content/items')
 
-function startEvent ( type, user, bot ){
-    let { telegramId } = user
-    console.log(`User ${user.playerName}(${telegramId}) started event ${type}.`)
-    let startText = `evt_${type}_start_`
-    evntMessage( startText, telegramId, bot, getTimerText(events[type].timer, user.language))
-
+async function StartEvent ( type, user ){
     let event = buildEvent( type, user )
-    setEnergyTimer( telegramId, 1 )
-    setTimeout(()=>{
-        if (event.end) return endEvent(event, user, bot)
-        return stepEvent(event, user, bot)
-    }, event.timer)
+    SetEvent( user.id, event, ()=>{})
 }
 
-function endEvent(event, user, bot){
-    let {telegramId} = user
-    updateUser( telegramId, {inAction: false}, (err, userDB)=>{
-        let { language, curExp, maxExp } = userDB
-        let rewardText = ''
-        let reward = {
-            ru: `\n\nТы получил:`,
-            en: `\n\nReward:`
-        }
-        let exp = {
-            ru: `\n✨ Опыт x${event.exp}`,
-            en: `\n✨ Exp x${event.exp}`
-        }
-        
-        rewardText += reward[language]
-        if(event.reward.text !== ''){
-            rewardText += event.reward.text
-            giveItems( telegramId, event.reward.items)
-        }
-        rewardText += exp[language]
+function buildEvent( type ){
 
-        let isLvlUp = false
-        if( event.exp + curExp >= maxExp) isLvlUp = true
-        giveExp( telegramId, event.exp )
+    let newEvent = {                        
+        timer: new Date(),
+        text: `${type}_start`,
+        act: 0,
+        msg: false,
+        steps: buildSteps( type )
+    }
 
-        sendMessage( event.textPoint, telegramId, !isLvlUp, bot, rewardText)
-        if( isLvlUp ){
-            sendMessage( 'msg_level', telegramId, true, bot )
-        }
-    })
-    console.log('end')
+    return newEvent
 }
 
-function stepEvent(event, user, bot){
-    console.log('step')
-}
-
-function buildEvent( type, user ){
-    let { language } = user
+function buildSteps ( type ){ //exp, reward, text, timer
     let event = events[type]
-    let point = getEventPoint( event, user )
-    let n = getRandomInt( event[point].text.length )
-    let reward = getReward( event[point].items, user )
-    let exp = event.exp
+    let steps = []
+    let n = 1 // количество шагов в ивенте
 
-    let end = false
-    if (type = 'walk') end = true
+    for ( let i = 0; i < n; i++ ){
+        let point = getEventPoint( event )
 
-    return {
-        timer: event.timer,
-        textStart: `evt_${type}_start_`,
-        textPoint: `evt_${type}_${point}_${n}`,
-        reward: reward,
-        exp: exp,
-        end: end
-    } 
-}
-
-function getEventPoint( event, user ){
-
-    let x = Math.random()
-
-    for(key in event){
-        if (event[key].chance){
-            let { chance } = event[key]
-
-            if( x <= chance ){
-                return key
-            }
+        steps[i] = {
+            timer: 1,
+            active: true,
+            text: `${type}_${point}`,
+            reward: buildItems( event[point].items ),
+            exp: event.exp
         }
     }
+
+    return steps
 }
 
-function getReward( itemList, user ){
-    let { language } = user
-    let reward ={
-        items:{},
-        text:''
-    }
-
-    for(key in itemList){
+function buildItems(items){
+    let reward = {}
+    for (let i in items){
         let x = Math.random()
-
-        if(x <= itemList[key][0]){
-            let n = getRandomInt( itemList[key][1], 1)
-            reward.items[key] = n
-            reward.text += `\n${items[key].icon} ${items[key].name[language]} x${n}`
+        if( x <= items[i][0] ){
+            x = getRandomInt(items[i][1],1)
+            reward[i] = x
         }
     }
 
     return reward
 }
 
-function getTimerText( timer, language ){
-    const returnText = {
-        ru: '\n⏰ Вернёшься через:',
-        en: '\n⏰ You\'ll return after:'
+function getEventPoint(event){
+    for(var point in event){
+        if(event[point].chance){
+            let x = Math.random()
+            console.log(`Chanse -- ${x}`)
+            if(x <= event[point].chance){
+                return point
+            }
+        }
     }
-    const second = 1000
-    const secondText = {
-        ru: 'сек',
-        en: 'sec'
-    }
-    const m = 60 * second
-    const minuteText = {
-        ru:'мин',
-        en:'min'
-    }
-
-    let text = returnText[language]
-    let newTimer = timer
-
-    let mt = Math.floor( newTimer / m )
-    if( mt > 0 ){
-        text += ` ${mt}${minuteText[language]}`
-        newTimer -= mt*m
-    }
-
-    let st = newTimer / second
-    if( st > 0 ){
-        text += ` ${st}${secondText[language]}`
-    }
-
-    text += '.'
-    return text
 }
 
-function getRandomInt( n, d ){
-    if (d) return (d + Math.floor( Math.random() * n ))
+function getRandomInt(n, d){
+    if (d) return Math.floor( Math.random() * n ) + d
     return Math.floor( Math.random() * n )
 }
 
 module.exports = {
-    startEvent
+    StartEvent,
+    buildEvent
 }

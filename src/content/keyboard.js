@@ -1,12 +1,15 @@
 const keyboard = {
+    name:[
+        ['mirror']
+    ],
     main: [
         ['profile'],
         ['actions'],
         ['options']
     ],
     profile: [
-        ['stats', 'equip'],
-        ['achieves', 'inventory'],
+        ['stats'],
+        ['inventory'],
         ['main']
     ],
         stats: [
@@ -20,12 +23,17 @@ const keyboard = {
         ],
         inventory: [
             ['inv'],
-            ['fish'],
             ['main', 'back_profile']
         ],
             fish: [
                 ['eat'],
                 ['buy'],
+                ['main', 'back_inventory']
+            ],
+            eat: [
+                ['main', 'back_inventory']
+            ],
+            buy: [
                 ['main', 'back_inventory']
             ],
             item: [
@@ -35,33 +43,24 @@ const keyboard = {
                 ['eat'],
                 ['main', 'back_inventory']
             ],
-            outfit:[
-                ['put_on'],
-                ['main', 'back_inventory']
-            ],
     actions: [
-        ['act_walk'],
-        ['act_cave'],
+        ['walk'],
         ['main']
     ],
     options: [
-        ['opt_lang'],
-        ['opt_notes'],
+        ['lang'],
+        ['notes'],
         ['main']
     ],
-    opt_lang: [
-        ['opt_lang_ru'],
-        ['opt_lang_en'],
+    lang: [
+        ['lang_ru'],
+        ['lang_en'],
         ['main', 'back_options']
     ],
-    opt_notes: [
-        ['opt_notes_on'],
-        ['opt_notes_off'],
+    notes: [
+        ['notes_on'],
+        ['notes_off'],
         ['main', 'back_options']
-    ],
-    work_in_progress: [
-        ['work_in_progress'],
-        ['main']
     ],
 
 }

@@ -1,30 +1,52 @@
-const telegramToken = require('./config/telegramToken')
-const connectionString = require('./config/mongoToken')
-const TelegramAPI = require('node-telegram-bot-api')
-const { callbackManager } = require('./managers/CallbackManager')
-const { messageManager, sendMessage } = require('./managers/MessageManager')
-const { energyManager } = require('./service/userService')
-const commands = require('./config/commands')
+//Импортируем библиотеку Mongoose для работы с Базой Данных (БД)
 const mongoose = require('mongoose');
 
-const bot = new TelegramAPI(telegramToken, { polling: true })
+//Импортируем токен для соединения с БД
+const connectionString = require('./config/mongoToken')
+
+//Коннектимся к БД
 mongoose.connect(connectionString, { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: false });
 
+//Импортируем необходимые функции из файлов
+const { UserDataUpdater } = require('./service/userService')
+const { CallbackManager } = require('./managers/CallbackManager')
+const { MessageManager, Message } = require('./managers/MessageManager')
 
-bot.setMyCommands( commands )
-    
-bot.on("polling_error", (m) => console.log(m));
+//Импортируем бота, которого создали в соседнем файле
+const { bot } = require('./bot')
 
-bot.on('callback_query',( query ) => {
-    callbackManager( bot, query)
-})
+// При возникновении ошибки бот будет выводить её в консоль
+bot.on("polling_error", (m) => console.log(m) );
 
-bot.onText( /\/start/, ( msg, match ) => {
-    messageManager( bot, msg, match )
-})
+// При получении сообщения бот вызывает функцию обработки сообщений
+bot.on('message', msg => MessageManager(msg))
 
-energyManager((isFull, telegramId)=>{
-    if(isFull){
-      //  sendMessage('msg_energy', telegramId, true, bot)
+// При нажатии на кнопки бот вызывает функцию обработки нажатий
+bot.on('callback_query',( query ) => CallbackManager(query) )
+
+// Запускаем функцию, которая обновляет данные пользователей
+UserDataUpdater( (user, isEvent, event, isEnergy)=>{
+
+    // Если были обновлены данные евента
+    // то отправляем сообщение с текстом шага*
+    if(isEvent){
+
+        // Достаём переменные шагов 
+        // и активного шага из евента
+        let { steps, act } = event
+        let step = steps[act]
+        
+        user.event = event
+        Message(user, step.text)
+    }
+
+    // Если обновлены данные энергии
+    if(isEnergy){
+
+        // Достаём переменные из объекта пользователя 
+        let { cur, max } = user.energy
+
+        // Если у пользователя полная энергия
+        if (cur >= max) Message(user, 'full_energy')
     }
 })

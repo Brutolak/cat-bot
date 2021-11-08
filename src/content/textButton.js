@@ -1,4 +1,8 @@
 const buttons = {
+    btn_mirror: {
+        ru: `Посмотреть`,
+        en: `Look`
+    },
 
     btn_main: {
         ru: `🏠 На главную`,
@@ -15,7 +19,7 @@ const buttons = {
         en: `🏃 Actions`
     },
 
-        btn_act_walk: {
+        btn_walk: {
             ru: `🐾 Прогулка`,
             en: `🐾 To walk`
         },
@@ -24,6 +28,16 @@ const buttons = {
             ru: `⛰ Пещера`,
             en: `⛰ To the Cave `
         },
+
+    btn_attack: {
+        ru:'⚔ Атаковать',
+        en:'⚔ attack'
+    },
+    
+    btn_escape: {
+        ru:'🏳 Сбежать',
+        en:'🏳 escape'
+    },
     
     btn_options: {
         ru: `⚙ Настройки`,

@@ -1,238 +1,212 @@
 const User = require('../schema/user');
+const items = require('../content/items')
 
-function getClientInfo( msg ) {
-
-	let userLang = msg.from.language_code
-	switch(userLang){
-
-		case 'ru':
-		case 'en':
-		break
-
-		default:
-			userLang = 'en'
-		break
-	}
-
-	return {
-        telegramId: msg.from.id,
-		playerName: msg.from.first_name,
-		language: userLang
-	};
+async function GetById( id ) {
+	return User.findOne({ id: id })
 };
 
-function isNew( telegramId, callback ) {
-	User.findOne({ telegramId: telegramId }, (err, existingUser) => {
-		if (err) {
-			callback(err, null);
-			return;
-		}
-
-		if (existingUser) {
-			callback(null, false);
-		} else {
-			callback(null, true);
-		}
-	});
+async function SaveUser( msg ) {
+	let user = GetUserInfo( msg)
+	let saved_user = await user.save({new:true})
+	return saved_user
 };
 
-function saveUser( user, callback ) {
-	isNew( user.telegramId, (err, result) => {
-		if (err) {
-			callback(err, null);
-			return;
-		}
+function GetUserInfo( msg ) {
+	let lang = (msg.from.language_code == 'ru') ? 'ru' : 'en'
 
-		if (result) {
-
-			let newUserDto = new User({
-				telegramId: user.telegramId,
-				playerName: user.playerName,
-				language: user.language,
-				created: new Date(),
-				nextEnergy: new Date()
-			})
-
-			newUserDto.save((err) => {
-				if (err) {
-					callback(err, null);
-				} else {
-					callback(null, true);
-					console.log(`User ${user.telegramId} saved.`)
-				}
-			});
-		} else {
-			callback(null, false);
-		}
-	})
-};
-
-function getById(telegramId, callback) {
-	User.findOne({ telegramId: telegramId }, (err, user) => {
-		if (err) {
-			callback(err, null);
-		}
-		else {
-			callback(null, user);
-		}
-	});
-};
-
-function updateUser( telegramId, newData, callback){
-
-	User.findOneAndUpdate({ telegramId: telegramId }, newData, {new: true}, (err, user)=>{
-		if (err) {
-			callback(err, null);
-		}
-		else {
-			console.log(`User: ${user.telegramId}> Update data: ${JSON.stringify(newData)}`)
-			callback(null, user);
-		}
-	});
-};
-
-function energyManager(callback){
-
-	console.log(`Energy Updater is started.`)
-
-	const updateInterval = 60 * 1000 //one minute
-	setInterval(()=>{
-
-		const timer =  60 * 60 * 1000 //one hour
-		let now = new Date()
-
-		User.find({}, function (err, docs) { if(err) throw err; docs.forEach(user => {
-
-			let {
-				curEnergy,
-				maxEnergy,
-			} = user
-
-			if ( curEnergy >= maxEnergy ) return 
-
-			let {
-				telegramId,
-				timerEnergy,
-				nextEnergy
-			} = user
-
-			if ( !timerEnergy ){
-				let newData = {
-					timerEnergy: true,
-					nextEnergy: now
-				}
-				return updateUser( telegramId, newData, (err, userDB) =>{} )
-			}
-
-			let dTimer = now - nextEnergy
-
-			if ( dTimer >= timer ){
-
-				let newData = {
-					nextEnergy: now,
-					curEnergy: curEnergy + 1
-				}
-
-				if(newData.curEnergy >= maxEnergy){
-					newData.timerEnergy = false
-				}
-
-				updateUser( telegramId, newData, (err, userDB)=>{
-					if(userDB.curEnergy >= userDB.maxEnergy) callback(true, telegramId)
-				} )	
-			}
-		})});
-	}, updateInterval)
-};
-
-function setEnergyTimer( telegramId, costEnergy){
-
-	getById( telegramId, (err, user)=> {
-
-		let newData = {
-			inAction: true,
-			curEnergy: user.curEnergy - costEnergy,
-		}
-		
-		if ( !user.timerEnergy ){
-			newData.timerEnergy = true
-			newData.nextEnergy =  new Date()
-		}
-
-		updateUser ( telegramId, newData, (err, user)=>{} )
+	return new User({
+		id: msg.from.id,
+		language: lang
 	})
 }
 
-function giveExp( telegramId, exp ){
-
-	getById( telegramId, (err, userDB) => {
-
-		let levelData = {}
-		let {level, curExp, maxExp} = userDB
-		let newExp = curExp + exp
-
-		if( newExp >= maxExp ){
-			levelData.level = userDB.level + 1
-			levelData.curExp = newExp - maxExp
-			levelData.maxExp = maxExp + level
-		} else{
-			levelData.curExp = newExp
-		}
-
-		updateUser( telegramId, levelData, (err, updatedUser)=>{})
-	})
+async function UpdateUser( id, newData ){
+	let user =  await User.findOneAndUpdate({ id: id }, newData, {new: true})
+	console.log(`User ${id} updated: ${JSON.stringify(newData)}`)
+	return Promise.resolve(user)
 };
 
-function giveItems(telegramId, items){
-	getById(telegramId, (err, user)=>{
-		let { inventory } = user
+async function UserDataUpdater(callback){
+	console.log(`User Data Updater is started.`)
 
-		for ( var item in items ){
-			let pos = isNewItem(item, inventory)
-			if ( pos == -1 ){
-				inventory.push(
-					{ code: item, amt: items[item] }
-				)
-			}else{
-				inventory[pos].amt += items[item]
-			}
+	const updateInterval = 10 * 1000 //one minute
+	setInterval(()=>{
+		User.find({}, function (err, docs) { 
+			if(err) throw err;
 
-		}
-		updateUser( telegramId, { inventory: inventory }, (err, userDB)=>{})
-	})
-};
+			docs.forEach(async (user) => {
+				let now = new Date()
+				let { id } = user
 
-function takeItems( telegramId, items ){
-	getById(telegramId, (err, user)=>{
-		let { inventory } = user
+				let energy_data = energyUpdater( user, now )
+				let isEnergy= (Object.keys(energy_data).length) ? true : false
 
-		for ( var item in items ){
-			let pos = isNewItem(item, inventory)
-			if ( pos == -1 ){
-				return
-			}else{
-				let resultAmt = inventory[pos].amt - items[item]
+				let event_data = eventUpdater( user, now )
+				let isEvent = (Object.keys(event_data).length) ? true : false
 
-				if (resultAmt > 0){
-					inventory[pos].amt = resultAmt
-				}else{
-					if (resultAmt = 0){
-						if (inventory[pos].code !== 'fish'){
-							inventory.splice( pos, 1 )
-						}else{
-							inventory[pos].amt = resultAmt
-						}
-					}else{
-						return
-					}
+
+				let newData = { ...energy_data, ...event_data }
+				if( Object.keys(newData).length ){
+					let event
+					if (isEvent) event = user.event
+					let new_user = await UpdateUser( id, newData)
+					callback(new_user, isEvent, event, isEnergy)
 				}
-				updateUser(telegramId, { inventory: inventory }, (err, userDB)=>{})
+			})
+		});
+	}, updateInterval)
+}
+
+function energyUpdater(user, now){
+
+	let { cur, max } = user.energy
+
+	if ( cur >= max ) return {}
+
+	let new_energy = { ...user.energy }
+	let { timer, date } = new_energy
+
+	const energy_timer =  60 * 1000 //one hour
+
+	if ( !timer ){
+		new_energy.timer = true
+		new_energy.date = now
+		return {energy: new_energy}
+	}
+
+	let dTimer = now - date
+
+	if ( dTimer >= energy_timer ){
+
+		new_energy.date = now
+		new_energy.cur += 1
+
+		if(new_energy.cur >= max){
+			new_energy.timer = false
+			new_energy.date = null
+		}
+
+		return {energy: new_energy}
+	}
+
+	return {}
+};
+
+function eventUpdater(user, now){
+
+	switch(user.status){
+		case 'free':
+		case 'start':
+		case 'name':
+		case 'avatar':
+			return {}
+	}
+
+	let { event } = user
+	let { act, steps, msg } = event
+	let current_step = steps[act]
+	let new_event = {}
+
+	if( !current_step.active) {
+		if(!msg){
+			new_event = { event: event}
+			new_event.event.msg = true
+
+			return new_event
+		} else return {}
+	}
+
+	let { timer, reward, exp } = current_step
+	let dTimer = now - event.timer
+
+	if( dTimer >= timer ){
+		if ( act + 1 > steps.length - 1 ){	
+			new_event = {
+				event: {},
+				status: "free"
 			}
-		}	
+		} else {
+			new_event = {
+				event: event
+			}
+			new_event.event.msg = false
+			new_event.event.timer = now
+			new_event.event.act = act + 1
+		}
+
+		if (Object.keys(reward).length){
+			new_event.inv = giveItems( user, reward )
+		} 
+		
+		if (exp){
+			let levelData = giveExp( user, exp )
+			for(key in levelData){
+				new_event[key] = levelData[key]
+			}
+		}
+		return new_event
+	}
+
+	return {}
+}
+
+async function SetEvent( id, event ){
+	let user = await GetById(id)
+	await UpdateUser ( id, {
+		event:event,
+		status:'in_action',
+		energy: SetEnergy(user, 1)
 	})
+	return
+}
+
+function SetEnergy( user, cost){
+
+	let new_energy = { ...user.energy }
+
+	new_energy.cur -= cost
+		
+	if ( !user.energy.timer ){
+		new_energy.timer = true
+		new_energy.date =  new Date()
+	}
+
+	return new_energy
+}
+
+function giveExp( user, bonus_exp ){
+
+	let { level, exp, exp_max } = user
+	let new_exp = exp + bonus_exp
+
+	if( new_exp >= exp_max ) return {
+		level: user.level + 1,
+		level_date: new Date(),
+		exp: new_exp - exp_max,
+		exp_max: exp_max + level
+	}
+
+	return { exp: new_exp }
+}
+
+function giveItems(user, items){
+	let { inv } = user
+
+	for ( var item in items ){
+		let pos = isNewItem(item, inv)
+		if ( pos == -1 ){
+			inv.push(
+				{ code: item, amt: items[item] }
+			)
+		}else{
+			inv[pos].amt += items[item]
+		}
+	}
+	return inv
 };
 
 function isNewItem(item, inventory){
+	if(items[item].unique) return -1
 	for ( var i in inventory ){
 		if ( inventory[i].code == item ){
 			return i;
@@ -242,14 +216,12 @@ function isNewItem(item, inventory){
 };
 
 module.exports = {
-    getClientInfo,
-	isNew,
-	saveUser,
-    getById,
-	updateUser,
+    GetUserInfo,
+	SaveUser,
+    GetById,
+	UpdateUser,
 	giveItems,
-	energyManager,
-	setEnergyTimer,
-	giveExp,
-	takeItems
+	UserDataUpdater,
+	SetEvent,
+	giveExp
 };

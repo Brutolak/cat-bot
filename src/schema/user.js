@@ -2,38 +2,45 @@ var mongoose = require('mongoose');
 
 var Schema = mongoose.Schema;
 
+var now = new Date()
+
 var UserSchema = new Schema({
-	telegramId: String,
-	created: Date,
-	mainMessageId: {type: Number, default: 0},
-	energyMessageId: {type: Number, default: 0},
-	eventMessageId: {type: Number, default: 0},
-	deleteNotes: {type:Boolean, default: false},
-	language: {type: String, default: 'ru'},
+	id: {type: String},
+	created: {type: Date, default: now},
+	status: {type: String, default:'name'},
+	language: {type: String, default: 'en'},
+	message: {type: Object, default:{
+		main: 0,
+		event: 0,
+		energy: 0,
+	}},
+	delete_Notes: {type:Boolean, default: false},
 
-	playerName: String,
-
+	name: {type: String},
+	avatar: {type: String},
+	
 	level: {type: Number, default: 1},
-	curExp: {type: Number, default: 0},
-	maxExp: {type: Number, default: 10},
+	exp: {type: Number, default: 0},
+	exp_max: {type: Number, default: 10},
+	level_date: {type: Date, default: now},
 
-	curHealth: {type: Number, default: 30},
-	maxHealth: {type: Number, default: 30},
-
-	maxEnergy: {type: Number, default: 5},
-	curEnergy: {type: Number, default: 5},
-	inAction: {type: Boolean, default: false},
-	nextEnergy: {type: Date},
-	timerEnergy: {type: Boolean, default: false},
-
-	attack: {type: Number, default: 3},
-	deffence: {type: Number, default: 0},
-	equip: {type: Object, default: {} },
-
-	inventory: {type: Array, default: [
+	energy: {type: Object, default:{
+		cur: 5,
+		max: 5,
+		date: now,
+		timer: false,
+	} },
+	event: {type: Object, default: {}},
+	inv: {type: Array, default: [
 		{code: 'fish', amt: 0}
 	]},
 	ach: {type: Array, default: []},
+
+	//curHealth: {type: Number, default: 30},
+	//maxHealth: {type: Number, default: 30},
+	//attack: {type: Number, default: 3},
+	//deffence: {type: Number, default: 0},
+	//equip: {type: Object, default: {} },
 });
 
 var User = mongoose.model('user', UserSchema);
