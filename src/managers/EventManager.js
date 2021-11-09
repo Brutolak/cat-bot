@@ -56,7 +56,6 @@ function getEventPoint(event){
     for(var point in event){
         if(event[point].chance){
             let x = Math.random()
-            console.log(`Chanse -- ${x}`)
             if(x <= event[point].chance){
                 return point
             }

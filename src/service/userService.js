@@ -1,3 +1,4 @@
+const Top = require('../schema/top')
 const User = require('../schema/user');
 const items = require('../content/items')
 
@@ -29,21 +30,24 @@ async function UpdateUser( id, newData ){
 async function UserDataUpdater(callback){
 	console.log(`User Data Updater is started.`)
 
-	const updateInterval = 10 * 1000 //one minute
+	const updateInterval = 60 * 1000 //one minute
 	setInterval(()=>{
 		User.find({}, function (err, docs) { 
 			if(err) throw err;
 
+			let user_list = []
+
 			docs.forEach(async (user) => {
 				let now = new Date()
-				let { id } = user
+				let { id, level, name, level_date } = user
+
+				user_list.push({ id, level, name, level_date })
 
 				let energy_data = energyUpdater( user, now )
 				let isEnergy= (Object.keys(energy_data).length) ? true : false
 
 				let event_data = eventUpdater( user, now )
 				let isEvent = (Object.keys(event_data).length) ? true : false
-
 
 				let newData = { ...energy_data, ...event_data }
 				if( Object.keys(newData).length ){
@@ -53,11 +57,31 @@ async function UserDataUpdater(callback){
 					callback(new_user, isEvent, event, isEnergy)
 				}
 			})
+
+			UpdateTop(user_list)
 		});
 	}, updateInterval)
 }
 
-function energyUpdater(user, now){
+async function UpdateTop( user_list ){
+    user_list.sort( ( a, b ) => (a.level < b.level) ? 1 : (a.level === b.level) ? ((new Date(a.date) > new Date(b.date)) ? 1 : -1) : -1 )
+
+	let new_top = []
+	for(let i in user_list){
+	    let { id, level, name  } = user_list[i]
+	
+	    new_top.push({ n: +i+1, id, level, name})
+	}
+
+	await Top.findOneAndUpdate({id:1}, {top: new_top}, {new:true})
+}
+
+async function GetTop(){
+	let top_db = await Top.findOne({})
+	return top_db.top
+}
+
+function energyUpdater( user, now ){
 
 	let { cur, max } = user.energy
 
@@ -223,5 +247,6 @@ module.exports = {
 	giveItems,
 	UserDataUpdater,
 	SetEvent,
-	giveExp
+	giveExp,
+	GetTop
 };

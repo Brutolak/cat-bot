@@ -14,6 +14,7 @@ async function MessageManager( msg ){
         let user = await GetById(msg.from.id)
         if (!(user.status == 'free' || user.status == 'in_action')) return
         if (msg.text == '/main') Message(user, 'main')
+        if (msg.text == '/top') Message(user, 'top')
         if (msg.text == '/me'){
             if(msg.chat.id != msg.from.id) return Message(user, 'me')
             return Message( user, 'stats' )
@@ -21,7 +22,7 @@ async function MessageManager( msg ){
                 UpdateUser(user.id, {message:{main:msg.message_id}})
                 bot.deleteMessage(user.id, user.message.main)
             })
-        } 
+        }
 
     }else{
         let user = await GetById(msg.from.id)
@@ -37,9 +38,8 @@ async function Message( user, key, callback ){
     let next = NextMessage( key )
     let del = NeedDelete( key )
     let main = NeedMain( key )
-    let msg
 
-    console.log(`Message( ${key} ) => '${type}'`)
+    console.log(`${(user.name)? user.name : user.id} => Message( ${key}, ${type} )`)
 
     let opt = await Options(key, user)
     
@@ -50,7 +50,6 @@ async function Message( user, key, callback ){
         media, // media
         opt         // message options: caption, buttons
     ).then( result =>{
-        msg = result
         let message_id = result.message_id
         if(del) bot.deleteMessage(user.id, user.message.main).then(
             UpdateUser(user.id, {message:{main: message_id}})
@@ -61,10 +60,7 @@ async function Message( user, key, callback ){
         user.id,
         opt.caption,
         opt
-    ).then(result =>{
-        msg = result
-    })
-    .catch()
+    )
 
 
     if( type == 'edit'){
@@ -87,7 +83,7 @@ async function Options( key, user ){
     let text = await Text(key, user)
     
     if(typeof text !='string'){
-        new_text = `<b>${text.icon}${text.name}</b>\n\n<i>${text.caption}</i>`
+        new_text = `<b>${text.icon} ${text.name}</b>\n\n<i>${text.caption}</i>`
         text = new_text
     }
 
@@ -108,6 +104,7 @@ function MessageType( key, callback ){ //text, photo, edit
         case 'name_invalid':
         case 'name_long':
         case 'full_energy':
+        case 'top':
             return 'text'
 
         case 'stats':

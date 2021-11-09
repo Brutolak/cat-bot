@@ -12,6 +12,7 @@ const ru = {
     ],
     stats:'{user_name}\n{level} {exp_count}\n{energy}',
     me:'{user_name}\n{level} {exp_count}\n{energy}',
+    top:'{top}',
     actions:'{energy}',
     level:'⭐ Уровень: {user_level}',
     energy:'⚡ Энергия: {user_energy}',
@@ -78,22 +79,22 @@ const ru = {
     },
     herbs:{
         icon:'🌿',
-        name:'Травка',
+        name:'Травки',
         caption:'Очень полезный ингредиент',
     },
     shrooms:{
         icon:'🍄',
-        name:'Гриб',
+        name:'Грибы',
         caption:'Шляпки на ножках',
     },
     nuts:{
         icon:'🌰',
-        name:'Орех',
+        name:'Орехи',
         caption:'Вкусные камни',
     },
     berries:{
         icon:'🍇',
-        name:'Ягод',
+        name:'Ягоды',
         caption:'Сладкие бусины',
     }
     
