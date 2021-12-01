@@ -1,8 +1,9 @@
 //Импортируем библиотеку Mongoose для работы с Базой Данных (БД)
+
 const mongoose = require("mongoose");
 
 //Импортируем токен для соединения с БД
-const connectionString = require("./config/mongoToken");
+const connectionString = process.env.MONGODB_URI;
 
 //Коннектимся к БД
 mongoose.connect(connectionString, {

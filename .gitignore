@@ -1,5 +1,7 @@
 /.vs
 /node_modules
 /src/Old
+/src/config/mongoToken.js
+/src/config/telegramToken.js
 package-lock.json
 JUNK.js
