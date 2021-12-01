@@ -1,74 +1,74 @@
-const { SetEvent } = require('../service/userService')
-const events = require('../content/events')
+const { SetEvent } = require("../service/userService");
+const events = require("../content/events");
 
-async function StartEvent ( type, user ){
-    let event = buildEvent( type, user )
-    SetEvent( user.id, event, ()=>{})
+async function StartEvent(type, user) {
+  let event = buildEvent(type, user);
+  SetEvent(user.id, event, () => {});
 }
 
-function buildEvent( type ){
+function buildEvent(type) {
+  let newEvent = {
+    timer: new Date(),
+    text: `${type}_start`,
+    act: 0,
+    msg: false,
+    steps: buildSteps(type),
+  };
 
-    let newEvent = {                        
-        timer: new Date(),
-        text: `${type}_start`,
-        act: 0,
-        msg: false,
-        steps: buildSteps( type )
+  return newEvent;
+}
+
+function buildSteps(type) {
+  //exp, reward, text, timer
+  let event = events[type];
+  let steps = [];
+  let n = 1; // количество шагов в ивенте
+
+  for (let i = 0; i < n; i++) {
+    let point = getEventPoint(event);
+
+    steps[i] = {
+      timer: 1,
+      active: true,
+      text: `${type}_${point}`,
+      reward: buildItems(event[point].items),
+      exp: event.exp,
+    };
+  }
+
+  return steps;
+}
+
+function buildItems(items) {
+  let reward = {};
+  for (let i in items) {
+    let x = Math.random();
+    if (x <= items[i][0]) {
+      x = getRandomInt(items[i][1], 1);
+      reward[i] = x;
     }
+  }
 
-    return newEvent
+  return reward;
 }
 
-function buildSteps ( type ){ //exp, reward, text, timer
-    let event = events[type]
-    let steps = []
-    let n = 1 // количество шагов в ивенте
-
-    for ( let i = 0; i < n; i++ ){
-        let point = getEventPoint( event )
-
-        steps[i] = {
-            timer: 1,
-            active: true,
-            text: `${type}_${point}`,
-            reward: buildItems( event[point].items ),
-            exp: event.exp
-        }
+function getEventPoint(event) {
+  for (var point in event) {
+    if (event[point].chance) {
+      let x = Math.random();
+      if (x <= event[point].chance) {
+        return point;
+      }
     }
-
-    return steps
+  }
 }
 
-function buildItems(items){
-    let reward = {}
-    for (let i in items){
-        let x = Math.random()
-        if( x <= items[i][0] ){
-            x = getRandomInt(items[i][1],1)
-            reward[i] = x
-        }
-    }
-
-    return reward
-}
-
-function getEventPoint(event){
-    for(var point in event){
-        if(event[point].chance){
-            let x = Math.random()
-            if(x <= event[point].chance){
-                return point
-            }
-        }
-    }
-}
-
-function getRandomInt(n, d){
-    if (d) return Math.floor( Math.random() * n ) + d
-    return Math.floor( Math.random() * n )
+function getRandomInt(n, d) {
+  if (d) return Math.floor(Math.random() * n) + d;
+  return Math.floor(Math.random() * n);
 }
 
 module.exports = {
-    StartEvent,
-    buildEvent
-}
+  StartEvent,
+  buildEvent,
+};

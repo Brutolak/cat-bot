@@ -1,162 +1,172 @@
-const { bot } = require('../bot')
-const { Text } = require('./GetText')
-const { Media } = require('./GetMedia')
-const { Name, Start } = require('./GameManager')
-const { BuildKeyboard } = require('./KeyboardManager')
-const { GetById, UpdateUser } = require('../service/userService')
+const { bot } = require("../bot");
+const { Text } = require("./GetText");
+const { Media } = require("./GetMedia");
+const { Name, Start } = require("./GameManager");
+const { BuildKeyboard } = require("./KeyboardManager");
+const { GetById, UpdateUser } = require("../service/userService");
 
-async function MessageManager( msg ){
-    let isCommand = msg.text.match(/\//)
+async function MessageManager(msg) {
+  let text = MsgText(msg);
 
-    if (isCommand) {
-        if (msg.text == '/start') return await Start( msg ).then((key) => Message(msg.from, key))
+  if (text == "/start")
+    return await Start(msg).then((isNew) => {
+      if (isNew) Message("start", msg);
+    });
+  if (text == "/main") return Message("main", msg);
 
-        let user = await GetById(msg.from.id)
-        if (!(user.status == 'free' || user.status == 'in_action')) return
-        if (msg.text == '/main') Message(user, 'main')
-        if (msg.text == '/top') Message(user, 'top')
-        if (msg.text == '/me'){
-            if(msg.chat.id != msg.from.id) return Message(user, 'me')
-            return Message( user, 'stats' )
-            .then(msg => {
-                UpdateUser(user.id, {message:{main:msg.message_id}})
-                bot.deleteMessage(user.id, user.message.main)
-            })
+  let user = await GetById(msg.from.id);
+  if (user.status == "name") return Name(msg).then((key) => Message(key, msg));
+  if (user.status != "free" && user.status != "in_action") return;
+  if (text == "/main") return Message("main", msg);
+  if (text == "/me") return Message("me", msg);
+  if (text == "/top") return Message("top", msg);
+}
+
+async function Message(key, msg) {
+  let opt = await Options(key, msg);
+  let {
+    del,
+    type,
+    text,
+    chat_id,
+    media,
+    reply_markup,
+    user,
+    parse_mode,
+    message_id,
+  } = opt;
+  //console.log(opt);
+  console.log(`User ${user.id} => ${key}`);
+
+  if (type == "edit") {
+    await bot.editMessageMedia(
+      { type: "photo", media, caption: text, parse_mode },
+      { chat_id, message_id, reply_markup }
+    );
+  }
+
+  if (type == "text") {
+    await bot.sendMessage(chat_id, text, { reply_markup, parse_mode });
+  }
+
+  if (type == "photo") {
+    await bot
+      .sendPhoto(chat_id, media, { caption: text, reply_markup, parse_mode })
+      .then((result) => {
+        if (chat_id == user.id && (key == "main" || key == "me")) {
+          let new_id = result.message_id;
+          UpdateUser(user.id, { message: { main: new_id } });
         }
+        if (del) bot.deleteMessage(chat_id, del);
+      });
+  }
 
-    }else{
-        let user = await GetById(msg.from.id)
-        switch(user.status){
-            case 'name': return Name(msg).then((user) => Message(user, 'name_correct'))
-        }
-    }
+  let next = NextMessage(key);
+  if (next) await Message(next, { from: { id: user.id } });
 }
 
-async function Message( user, key, callback ){
+function NextMessage(key) {
+  if (key.match(/^walk/)) return "main";
+  switch (key) {
+    case "look":
+      return "yahoo";
 
-    let type = MessageType( key, callback )
-    let next = NextMessage( key )
-    let del = NeedDelete( key )
-    let main = NeedMain( key )
+    case "yahoo":
+    case "full_energy":
+      return "main";
 
-    console.log(`${(user.name)? user.name : user.id} => Message( ${key}, ${type} )`)
-
-    let opt = await Options(key, user)
-    
-    if( type == 'photo' ) {
-        let media = (key == 'profile'||key == 'me'||key == 'yahoo')? Media(user.avatar) : Media(key) 
-        await bot.sendPhoto(
-        user.id,    // chat
-        media, // media
-        opt         // message options: caption, buttons
-    ).then( result =>{
-        let message_id = result.message_id
-        if(del) bot.deleteMessage(user.id, user.message.main).then(
-            UpdateUser(user.id, {message:{main: message_id}})
-        )
-    })}
-
-    if( type == 'text') await bot.sendMessage(
-        user.id,
-        opt.caption,
-        opt
-    )
-
-
-    if( type == 'edit'){
-        let { caption, reply_markup, parse_mode } = opt
-        let media = Media('main')
-        await bot.editMessageMedia(
-            {type:'photo', media, caption, parse_mode},
-            {chat_id:user.id, message_id:callback.message_id, reply_markup }
-        )
-    }
-
-    if (next) await Message( user, next )
-    if (main) await Message( user, 'main')
-
-    return msg
+    default:
+      return false;
+  }
 }
 
-async function Options( key, user ){
-
-    let text = await Text(key, user)
-    
-    if(typeof text !='string'){
-        new_text = `<b>${text.icon} ${text.name}</b>\n\n<i>${text.caption}</i>`
-        text = new_text
+async function Options(key, msg) {
+  let user = await GetById(msg.from.id);
+  let reply_markup,
+    media,
+    text,
+    del = undefined;
+  if (key == "me" || key == "stats") {
+    if (msg.chat?.id == msg.from.id || msg.message?.chat?.id == msg.from.id) {
+      reply_markup = await BuildKeyboard("stats", user);
+      text = await Text("stats", user);
+      del = NeedDelete(key, user);
+    } else {
+      text = await Text("me", user);
     }
-
-    let opt = {
-        caption: text,
-        parse_mode: 'HTML',
-        reply_markup: await BuildKeyboard(key, user)
+    media = Media(user.avatar);
+  } else {
+    reply_markup = await BuildKeyboard(key, user);
+    media = Media("main");
+    text = key != "look" ? await Text(key, user) : await Text("mirror", user);
+    if (typeof text != "string") {
+      text = `<b>${text.icon} ${text.name}</b>\n\n<i>${text.caption}</i>`;
     }
-    
-    return opt
+    del = NeedDelete(key, user);
+  }
+
+  return {
+    del,
+    type: Type(key, msg),
+    text,
+    user,
+    media,
+    chat_id: ChatId(key, msg),
+    message_id: MessageId(msg),
+    parse_mode: "HTML",
+    reply_markup,
+  };
 }
 
-function MessageType( key, callback ){ //text, photo, edit
+function NeedDelete(key, user) {
+  switch (key) {
+    case "main":
+    case "me":
+      return user.message.main;
 
-    switch(key){
-        case 'walk':
-        case 'start':
-        case 'name_invalid':
-        case 'name_long':
-        case 'full_energy':
-        case 'top':
-            return 'text'
-
-        case 'stats':
-            if(!callback) return 'photo'
-        case 'actions':
-            return 'edit'
-
-        case 'me':
-            return 'photo'
-    }
-
-    if(callback) return 'edit'
-
-    let command = key.match(/_/)
-    if ( !command ) return 'photo'
-    return 'text'    
+    default:
+      return false;
+  }
 }
 
-function NextMessage( key ){
-    switch( key ){
-        case 'mirror':
-            return 'yahoo'
+function Type(key, msg) {
+  if (msg.data && msg.data != "walk" && msg.data != "yahoo") return "edit";
+  switch (key) {
+    case "me":
+    case "main":
+    case "stats":
+    case "start":
+    case "name_correct":
+    case "mirror":
+      return "photo";
 
-        default:
-            return false
-    }
+    default:
+      return "text";
+  }
 }
 
-function NeedDelete( key ){
-    switch( key ){
-        case 'main':
-            return true
-
-        default:
-            return false
-    }
+function ChatId(key, msg) {
+  if (msg.data) return msg.message.chat.id;
+  if (key == "me" || key == "top")
+    return msg.from.id == msg.chat.id ? msg.from.id : msg.chat.id;
+  return msg.from.id;
 }
 
-function NeedMain( key ){
-    if(key.match(/^walk/)) return true
-
-    switch(key){
-        case 'yahoo':
-        case 'full_energy':
-            return true
-        
-        default:
-            return false
-    }
+function MessageId(msg) {
+  if (msg.data) return msg.message.message_id;
 }
 
-module.exports = { 
-    MessageManager,
-    Message 
+function MsgText(msg) {
+  if (msg.from.id == msg.chat.id) return msg.text;
+
+  if (msg.text.match(/@/)) return msg.text.match(/^(.*)@/)[1];
+
+  if (msg.reply_to_message?.from.id == 1818291689) return msg.text;
+
+  return "";
 }
+
+module.exports = {
+  MessageManager,
+  Message,
+};
