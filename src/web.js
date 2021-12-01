@@ -1,10 +1,8 @@
 var express = require("express");
-var packageInfo = require("./package.json");
-
 var app = express();
 
 app.get("/", function (req, res) {
-  res.json({ version: packageInfo.version });
+  res.json({ version: 1 });
 });
 
 var server = app.listen(process.env.PORT, function () {
