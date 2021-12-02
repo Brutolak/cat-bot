@@ -1,5 +1,5 @@
 // Импортируем токен бота, который получили в BotFather
-const telegramToken = process.env.TELEGRAM_TOKEN;
+const telegramToken = require('./config/telegramToken');
 
 // Импортируем библиотеку для работы с ботом
 const TelegramAPI = require("node-telegram-bot-api");
