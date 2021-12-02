@@ -1,6 +1,8 @@
+const min = 60 * 1000
+
 const events = {
   walk: {
-    timer: 5,
+    timer: 5 * min,
     exp: 2,
 
     forest: {

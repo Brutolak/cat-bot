@@ -28,7 +28,7 @@ async function UpdateUser(id, newData) {
 
 async function UserDataUpdater(callback) {
   console.log(`User Data Updater is started.`);
-  const updateInterval = 20 * 1000; //one minute
+  const updateInterval = 60 * 1000; //one minute
   setInterval(() => {
     User.find({}, function (err, docs) {
       if (err) throw err;
@@ -83,7 +83,7 @@ function energyUpdater(user, now) {
   if (cur >= max) return {};
   let new_energy = { ...user.energy };
   let { timer, date } = new_energy;
-  const energy_timer = 60 * 1000; //one hour
+  const energy_timer = 60 * 60 * 1000; //one hour
   if (!timer) {
     new_energy.timer = true;
     new_energy.date = now;
