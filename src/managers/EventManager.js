@@ -28,7 +28,7 @@ function buildSteps(type) {
     let point = getEventPoint(event);
 
     steps[i] = {
-      timer: 1,
+      timer: event.timer,
       active: true,
       text: `${type}_${point}`,
       reward: buildItems(event[point].items),
