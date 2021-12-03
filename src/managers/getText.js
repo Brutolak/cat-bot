@@ -64,13 +64,20 @@ async function GetVar(key, user) {
       return user.inv[0].amt;
 
     case "user_energy":
-      return `(${user.energy.cur}/${user.energy.max})`;
+      return `${user.energy.cur}/${user.energy.max}`;
+
+    case "energy_timer":
+      let { cur, max, date } = user.energy;
+      if (cur < max) return ` (⏱️ ${EnegryTimer(date)} {min})`;
+      return "";
 
     case "reward_items":
       return await RewardText(user);
 
     case "event_timer":
-      return await Timer();
+      if (user.status == "in_action")
+        return `{walk_return} ${EventTimer(user.event.timer)} {min}.\n`;
+      return "";
 
     case "top":
       return await TopText(user);
@@ -79,6 +86,20 @@ async function GetVar(key, user) {
       return await Text(key, user);
   }
 }
+
+const Timer = (timer) => {
+  return (date) => {
+    let now = new Date();
+    let d = now - date;
+    let m = 60 * 1000;
+    let mTimer = timer * m;
+    let t = mTimer - d;
+    return Math.round(t / m);
+  };
+};
+
+const EnegryTimer = Timer(60);
+const EventTimer = Timer(5);
 
 async function RewardText(user) {
   let { reward, exp } = user.event;
@@ -140,4 +161,4 @@ function YouSign(id) {
   }
 }
 
-module.exports = { Text };
+module.exports = { Text, Timer };

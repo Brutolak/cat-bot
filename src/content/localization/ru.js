@@ -18,11 +18,12 @@ const ru = {
   stats: "{user_name}\n{level} {exp_count}\n{energy}",
   me: "{user_name}\n{level} {exp_count}",
   top: "{top}",
-  actions: "{energy}",
+  actions: "{event_timer}{energy}",
   level: "⭐ Уровень: {user_level}",
-  energy: "⚡ Энергия: {user_energy}",
+  energy: "⚡ Энергия: {user_energy}{energy_timer}",
   exp: "✨Опыт",
   exp_count: "({user_exp}/{user_exp_max})",
+  min: "мин",
 
   //====[ EVENTS ]============================================
   walk: [
@@ -30,7 +31,7 @@ const ru = {
     "Ноги понесли вдоль тропинки. Сопротивляться нет смысла.{walk_return}",
     "Душа рвётся к приключениям! А за ней и тело.{walk_return}",
   ],
-  walk_return: "\nВернёшся через 5 минут.",
+  walk_return: "\nВернёшся через",
 
   walk_forest: [
     "🌳 Вдоль лесной тропинки ты нашёл немного полезных вещей. {reward}",
