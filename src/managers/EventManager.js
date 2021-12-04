@@ -3,7 +3,7 @@ const events = require("../content/events");
 
 async function StartEvent(type, user) {
   let event = buildEvent(type, user);
-  SetEvent(user.id, event, () => {});
+  await SetEvent(user.id, event);
 }
 
 function buildEvent(type) {

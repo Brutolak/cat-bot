@@ -13,7 +13,7 @@ async function CallbackManager(query) {
   if (user.status == "avatar")
     user = await UpdateUser(id, { status: "free", avatar: "default" });
 
-  if (key == "walk") StartEvent(key, user);
+  if (key == "walk") await StartEvent(key, user);
 
   Message(key, query);
 }
